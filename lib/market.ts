@@ -1,3 +1,4 @@
+import {insightKind} from './insights';
 import type {Article} from './news';
 export type MarketScope='domestic'|'overseas'|'mixed'|'unknown';
 export const marketLabels:Record<MarketScope,string>={domestic:'국내 상장',overseas:'해외 상장',mixed:'국내·해외 공통',unknown:'상장 시장 미확인'};
@@ -22,3 +23,9 @@ export function marketScope(article:Pick<Article,'title'|'summary'|'summaryKind'
  if(foreignInstitution||foreignCrypto||/(?:미국|유럽|일본|홍콩|중국|美)\s*(?:현물\s*)?ETF/.test(text)||article.marketHint==='overseas')return 'overseas';
  return 'unknown';
 }
+
+export type MarketView='all'|'domestic'|'overseas';
+export function isSharedInsight(article:Pick<Article,'title'|'summary'|'summaryKind'|'marketHint'>){
+ const scope=marketScope(article);return !!insightKind(article)&&(scope==='mixed'||scope==='unknown');
+}
+export function inMarketView(article:Pick<Article,'title'|'summary'|'summaryKind'|'marketHint'>,view:MarketView){return view==='all'||marketScope(article)===view||isSharedInsight(article)}

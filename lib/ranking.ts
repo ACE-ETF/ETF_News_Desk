@@ -1,3 +1,4 @@
+import {insightKind} from './insights';
 import type { Article } from './news';
 import {isNewListing} from './classify';
 export type Importance={score:number;level:'상'|'중'|'일반';reasons:string[]};
@@ -8,6 +9,7 @@ export function importance(a:Pick<Article,'title'|'category'>):Importance{
  if(/\b(?:SEC|regulat\w*|legislation|tax rules?)\b|제도|규제|금융위|금감원|금융당국|법안|과세|세제|세금|퇴직연금.*(?:허용|확대|편입|한도)|투자한도/i.test(t))add(45,'제도·투자 가능 범위');
  if(/\b(?:liquidat\w*|closures?|delist\w*|trading halt|tracking error)\b|상장폐지|거래정지|청산|괴리율|추적오차|유동성.*(?:위기|부족)/i.test(t))add(50,'운용·거래 위험');
  if(isNewListing(t))add(32,'신상품·신규 상장');
+ const insight=insightKind(a);if(insight)add(insight==='지수·편입 변화'?45:25,insight);
  // Distribution signals are mutually exclusive: routine notices must not stack with special payouts.
  if(/분배금.*(?:삭감|중단|축소|급감)|배당.*(?:삭감|중단)/.test(t))add(50,'배당·분배 지급 위험');
  else if(/분배.*정책.*(?:변경|전환)|배당.*정책.*(?:변경|전환)/.test(t))add(30,'배당·분배 정책 변경');

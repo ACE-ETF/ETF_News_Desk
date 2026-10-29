@@ -1,6 +1,7 @@
 import ts from 'typescript';import fs from 'node:fs';import assert from 'node:assert/strict';
-const js=ts.transpileModule(fs.readFileSync('lib/market.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;
-const {marketScope}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const insightJS=ts.transpileModule(fs.readFileSync('lib/insights.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;const insightURL='data:text/javascript;base64,'+Buffer.from(insightJS).toString('base64');
+const js=ts.transpileModule(fs.readFileSync('lib/market.ts','utf8').replaceAll('./insights',insightURL),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;
+const {marketScope,inMarketView,isSharedInsight}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
 const check=(title,expected,summary)=>assert.equal(marketScope({title,summary}),expected,title);
 check('ACE 미국S&P500 ETF 신규 상장','domestic');
 check('KODEX 미국나스닥100 ETF 분배금 지급','domestic');
@@ -60,3 +61,8 @@ check('반도체 ETF 반등, 해외 투자 관심','unknown');
 check('SOL Gains Ground Despite Solana ETF Outflows','unknown');
 check('PLUS ETF research expands globally','unknown');
 console.log('PASS: Korean issuer aliases, brokerage services, domestic policy, PLUS HBM, crypto currency evidence, uncertain evidence retained');
+
+const common={title:'프런티어AI, 앤트로픽 담은 ETF'};assert(isSharedInsight(common));for(const view of ['domestic','overseas','all'])assert(inMarketView(common,view));
+const unclear={title:'새로운 액티브 ETF 상품 안내'};assert(!isSharedInsight(unclear));assert(inMarketView(unclear,'all'));assert(!inMarketView(unclear,'domestic'));assert(!inMarketView(unclear,'overseas'));
+assert(!inMarketView({title:'VOO ETF 신규 상장'},'domestic'));assert(!inMarketView({title:'ACE 미국S&P500 ETF'},'overseas'));
+console.log('PASS: shared insight in both views without relabeling listing venue; unknown products retained in all');

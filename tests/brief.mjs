@@ -1,6 +1,6 @@
 import fs from 'node:fs';import ts from 'typescript';import assert from 'node:assert/strict';
 const url=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64');
-const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8'));const {briefStories,groupStories}=await import(url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./ranking',rankURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL)));
+const insightURL=url(fs.readFileSync('lib/insights.ts','utf8'));const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL).replaceAll('./insights',insightURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8'));const {briefStories,groupStories}=await import(url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./insights',insightURL).replaceAll('./ranking',rankURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL)));
 const make=(i,title,category)=>({a:{id:String(i),title,category,published:'2026-10-29T00:00:00Z',source:'검증',url:'https://example.com/'+i,brands:[],date:'2026-10-29'},others:[]});
 const stories=[...Array.from({length:12},(_,i)=>make(i,'ETF 순자산 '+(i+1)+'조원 돌파','수급·성과')),...Array.from({length:5},(_,i)=>make(20+i,'운용사 '+i+' ETF 총보수 인하','상품·전략')),make(30,'ETF 특별배당 지급','배당·분배'),make(31,'ETF 신규 상장','신규 상장'),make(32,'ETF 거래정지 안내','제도·시장'),make(33,'ETF 분배금 지급 안내','배당·분배'),make(34,'ETF 경품 이벤트','마케팅')].sort((a,b)=>compareImportance(a.a,b.a));
 const selected=briefStories(stories);assert(selected.length<=6);assert(selected.some(s=>s.a.category==='제도·시장'));assert(selected.filter(s=>s.a.category==='수급·성과').length<=3);assert(!selected.some(s=>['33','34'].includes(s.a.id)));assert.equal(stories.length,22);
@@ -54,3 +54,13 @@ console.log('PASS: one crypto issue in the core briefing, other asset stories re
 const {isCryptoStory}=await import(eventsURL);
 for(const title of ['Hyperliquid ETF Debuts on Nasdaq','Zcash ETF inflows','Dogecoin ETF launch','IBIT inflows','하이퍼리퀴드 ETF 상장'])assert(isCryptoStory({title}),title);
 assert(!isCryptoStory({title:'SOL AI반도체 ETF'}));
+
+const {insightKind}=await import(insightURL);
+const ideas=['프런티어AI, 앤트로픽(Anthropic) 담은 ETF','글로벌 운용자산 380조 원… 세계 ETF 시장서 11위 올라','반도체 주춤하자 K뷰티 날았다…화장품 ETF 한달 새 40%↑','IT株 54곳 산업재로 이동…삼성SDI·LG전자 ETF 3200억 매물 쏟아질듯'];
+const rankingModule=await import(rankURL);
+for(const title of ideas){assert(insightKind({title}));assert(importanceForTest(title)>=35)}
+function importanceForTest(title){return rankingModule.importance({title,category:'상품·전략'}).score}
+
+const insightBrief=briefStories([...stories,...ideas.map((t,i)=>make(400+i,t,'상품·전략'))].sort((a,b)=>compareImportance(a.a,b.a)));
+assert(insightBrief.some(s=>s.a.id==='32'));assert(insightBrief.some(s=>s.a.title===ideas[3]));assert(insightBrief.filter(s=>insightKind(s.a)).length>=2);assert(insightBrief.length<=6);
+assert(!insightKind({title:'새로운 액티브 ETF 상품 안내'}));console.log('PASS: idea/industry/index opinion eligibility and briefing slots, high-risk priority');
