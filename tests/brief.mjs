@@ -45,3 +45,8 @@ assert.equal(groupStories([announcement,make(206,'KODEX 미국S&P500 ETF 11월 �
 assert.equal(groupStories([announcement,make(207,'KODEX 미국S&P500 ETF 분배금 117원 29일 지급','배당·분배').a]).length,2);
 assert.equal(groupStories([announcement,make(208,'KODEX 미국S&P500 ETF 분배금 삭감','배당·분배').a]).length,2);
 console.log('PASS: combined-announcement anchor, generic index aliases, single-fund excerpt, amount/month/payment-date/risk guards');
+
+const cryptoBrief=briefStories([make(301,'SEC approves new Bitcoin ETF rules','제도·시장'),make(302,'SEC reviews Ethereum ETF rules','제도·시장'),make(303,'Vanguard launches a bond ETF','신규 상장'),make(304,'iShares ETF expense ratio cuts','상품·전략'),make(305,'SPDR launches a gold ETF','신규 상장')]);
+assert.equal(cryptoBrief.filter(s=>/Bitcoin|Ethereum/.test(s.a.title)).length,1);
+assert(cryptoBrief.some(s=>/bond/.test(s.a.title)));assert(cryptoBrief.some(s=>/gold/.test(s.a.title)));
+console.log('PASS: one crypto issue in the core briefing, other asset stories retained');

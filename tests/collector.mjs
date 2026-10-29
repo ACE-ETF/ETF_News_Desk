@@ -53,8 +53,15 @@ objects.set('status.json',{body:JSON.stringify({windowStart:'2026-10-29T23:00:00
 assert((await mod.getNews()).articles.some(a=>a.id==='middle-weekend'));
 Date.now=()=>Date.parse('2026-11-01T00:00:00Z');assert.equal((await mod.collect()).skipped,true);
 Date.now=()=>Date.parse('2026-12-25T00:00:00Z');assert.equal((await mod.collect()).skipped,true);
-Date.now=()=>Date.parse('2026-11-02T00:00:00Z');const seen=[];globalThis.fetch=async url=>{seen.push(url);return new Response('<rss><channel></channel></rss>')};await mod.collect();assert.equal(seen.length,20);assert(seen.some(u=>u.includes('ceid=US%3Aen')));assert(seen.some(u=>u.includes('ceid=KR%3Ako')));assert(seen.every(u=>decodeURIComponent(u).includes('after:')));
+Date.now=()=>Date.parse('2026-11-02T00:00:00Z');const seen=[];globalThis.fetch=async url=>{seen.push(url);return new Response('<rss><channel></channel></rss>')};await mod.collect();assert.equal(seen.length,32);assert(seen.some(u=>u.includes('ceid=US%3Aen')));assert(seen.some(u=>u.includes('ceid=KR%3Ako')));assert(seen.every(u=>decodeURIComponent(u).includes('after:')));
 Date.now=realNow;
 console.log('PASS: Monday weekends, Chuseok, Seollal, substitute holidays, year boundary, intermediate dates, holiday skip, extended source range');
 
 const archived=await mod.getNews('2026-10-31');assert.equal(archived.window.start,'2026-10-30T15:00:00.000Z');assert.equal(archived.window.end,'2026-10-31T15:00:00.000Z');
+
+const queries=mod.collectionQueries({start:Date.parse('2026-10-27T23:00Z'),end:Date.parse('2026-10-28T23:00Z')});
+const english=queries.filter(q=>q.gl==='US');assert.equal(english.length,5);
+assert.equal(english.filter(q=>q.q.includes('-bitcoin')).length,4);
+for(const theme of ['equity','bond','gold','expense ratio'])assert(english.some(q=>q.q.includes(theme)&&q.q.includes('-crypto')));
+assert.equal(english.filter(q=>q.q.includes('(bitcoin OR ethereum OR crypto)')).length,1);
+console.log('PASS: separate equity, fixed income, commodity and industry searches, bounded dedicated crypto feed');

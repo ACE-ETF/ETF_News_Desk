@@ -28,3 +28,35 @@ assert(!isAceStory({title:'한국투자증권 ETF 서비스 출시',brands:[]}))
 assert(!isAceStory({title:'KODEX 미국 ETF 분배금 지급',brands:['KODEX']}));
 
 assert.equal(marketScope({title:'SOL Gains Ground Despite Solana ETF Outflows',marketHint:'overseas',summaryKind:'title_translation',summary:'SOL 가격, 솔라나 ETF 자금 유출에도 상승'}),'overseas');
+
+// Domestic institutions and services do not identify the underlying investment country.
+for(const title of [
+ '하나자산운용, 월분배 전환 2세대 채권혼합형 ETF 분배금 지급',
+ '한국투자신탁운용, 미국 대표지수 ETF 출시',
+ '한투운용, ETF 수익률 1위',
+ '브이아이운용, 스페이스X ETF 출시',
+ '우리자산운용, 반도체 ETF 순자산 증가',
+ '키움증권, 영웅문S# ETF 스마트 검색 도입',
+ '키움證, ETF 스마트 검색 도입',
+ '증권사, ETF 등 판매 때 현금 이벤트 앞으로 못한다',
+ '상금 노린 ETF 거래 폭증…증권사 현금 이벤트 제동',
+ '은행 신탁부터 레버리지까지…ETF 관리 범위 넓히는 당국',
+ '경찰, 단일 레버리지 ETF 책임 李대통령 고발건 수사 착수',
+ 'ETF 상관계수 미달 공시 전년비 11배',
+ 'ETF 상장 수요는 넘치는데...거래소 4년 7개월 만에 1명 보강',
+ '메모리 반도체 강세 타고…개미들 PLUS HBM ETF에 5900억',
+ 'SOL AI반도체 ETF 상장',
+ 'ACE미국S&P500 ETF',
+])check(title,'domestic');
+check('美 비트코인 ETF 전날 1.7억弗 순유입','overseas');
+check('리플 XRP ETF 자산 2억 달러 감소','overseas');
+check('솔라나 ETF, SOL $100 유지','overseas');
+check('키움증권, 미국에 상장된 QQQ ETF 매매 서비스','overseas');
+check('하나자산운용, 미국에 상장된 ETF 투자 확대','overseas');
+check('한국 ETF와 블랙록 ETF 비교','mixed');
+check('삼성운용, 미국 ETF 투자 전략','domestic');
+check('새로운 액티브 ETF 전략 등장','unknown');
+check('반도체 ETF 반등, 해외 투자 관심','unknown');
+check('SOL Gains Ground Despite Solana ETF Outflows','unknown');
+check('PLUS ETF research expands globally','unknown');
+console.log('PASS: Korean issuer aliases, brokerage services, domestic policy, PLUS HBM, crypto currency evidence, uncertain evidence retained');

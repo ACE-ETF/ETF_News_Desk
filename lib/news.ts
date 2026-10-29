@@ -15,8 +15,14 @@ export function collectionQueries(window:{start:number;end:number}){
   {q:'ETF',hl:'ko',gl:'KR',ceid:'KR:ko'},
   {q:'상장지수펀드',hl:'ko',gl:'KR',ceid:'KR:ko'},
   {q:'(ACE OR TIGER OR KODEX OR RISE OR SOL OR PLUS) ETF',hl:'ko',gl:'KR',ceid:'KR:ko'},
-  {q:'ETF (NYSE OR Nasdaq OR "US-listed" OR BlackRock OR Vanguard OR iShares OR SPDR)',hl:'en-US',gl:'US',ceid:'US:en'},
-  {q:'ETF (launch OR inflows OR outflows OR SEC OR closure OR fees)',hl:'en-US',gl:'US',ceid:'US:en'}
+  // Separate asset searches prevent high-volume crypto publishers from filling every RSS page.
+  ...[
+   'ETF (equity OR stock OR sector OR dividend OR thematic) (Vanguard OR iShares OR SPDR OR Invesco OR Schwab OR Nasdaq)',
+   'ETF (bond OR Treasury OR credit OR "fixed income" OR municipal)',
+   'ETF (gold OR silver OR commodity OR commodities OR oil)',
+   'ETF (launch OR fees OR "expense ratio" OR regulation OR closure OR "active ETF")'
+  ].map(q=>({q:q+' -bitcoin -ethereum -crypto -cryptocurrency -solana -XRP -dogecoin -blockchain',hl:'en-US',gl:'US',ceid:'US:en'})),
+  {q:'ETF (bitcoin OR ethereum OR crypto) (approval OR regulation OR launch OR inflows OR outflows)',hl:'en-US',gl:'US',ceid:'US:en'}
  ];
  const periods=window.end-window.start===86400000?[' when:2d']:calendarDates(window.start,window.end).map(day=>{const start=Date.parse(day+'T00:00:00+09:00');return ' after:'+new Date(start-86400000).toISOString().slice(0,10)+' before:'+new Date(start+2*86400000).toISOString().slice(0,10)});
  return periods.flatMap(period=>bases.map(base=>({...base,q:base.q+period})));

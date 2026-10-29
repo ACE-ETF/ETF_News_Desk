@@ -1,12 +1,12 @@
 import {distributionEventKeys} from './distribution-events';
-import {canGroupStories} from './story-events';
+import {canGroupStories,isCryptoStory} from './story-events';
 import {importance} from './ranking';
 import type {Article} from './news';
 export type Story={a:Article;others:Article[]};
 export function briefStories(stories:Story[],limit=6){
  const eligible=stories.filter(s=>importance(s.a).score>=35&&s.a.category!=='마케팅');
  const selected:Story[]=[];const counts=new Map<string,number>();
- for(const story of eligible){const n=counts.get(story.a.category)||0;if(n>=3&&importance(story.a).level!=='상')continue;selected.push(story);counts.set(story.a.category,n+1);if(selected.length===limit)break}
+ for(const story of eligible){if(isCryptoStory(story.a)&&selected.some(s=>isCryptoStory(s.a)))continue;const n=counts.get(story.a.category)||0;if(n>=3&&importance(story.a).level!=='상')continue;selected.push(story);counts.set(story.a.category,n+1);if(selected.length===limit)break}
  return selected;
 }
 export function groupStories(articles:Article[],enabled=true):Story[]{
