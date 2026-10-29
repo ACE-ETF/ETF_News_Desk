@@ -31,3 +31,5 @@ export function isSharedInsight(article:Pick<Article,'title'|'summary'|'summaryK
 export function inMarketView(article:Pick<Article,'title'|'summary'|'summaryKind'|'marketHint'>,view:MarketView){return view==='all'||marketScope(article)===view||isSharedInsight(article)}
 
 export function marketOrder(a:Pick<Article,'title'|'summary'|'summaryKind'|'marketHint'>){const scope=marketScope(a);return scope==='domestic'?0:isSharedInsight(a)?1:scope==='overseas'?2:3}
+
+export function marketGroupMatches(story:{a:Article;others:Article[]},view:MarketView){return [story.a,...story.others].some(a=>inMarketView(a,view))}

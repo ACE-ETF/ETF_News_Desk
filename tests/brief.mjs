@@ -102,3 +102,8 @@ assert.equal(pair('Bitcoin ETFs see $137M inflows over two days','Bitcoin ETFs s
 assert.equal(pair('IBIT ETF inflows hit $137M','Bitcoin spot ETFs draw $137M inflows').length,2);
 assert(isRoutineStory({title:'Form FWP VanEck Merk Gold ETF Filed by: VanEck Merk Gold ETF'}));assert(isRoutineStory({title:'U.S. spot XRP ETF inflows exceed $1.8 billion, XRP holders can earn up to $10,000 daily'}));
 console.log('PASS: gold AUM currency/rounding, aggregate crypto flow title aliases, date/period/fund boundaries, promotional and filing exclusions');
+
+const productNight={...make(700,'미래에셋 TIGER 미국S&P500 ETF, 개인 순매수 5조원 돌파','수급·성과').a,date:'2026-10-30',published:'2026-10-29T22:00:00Z'};
+const productEvening={...make(701,'미래에셋 TIGER 미국S&P500 ETF, 연초 이후 개인 순매수 5조원 돌파','수급·성과').a,date:'2026-10-29',published:'2026-10-29T09:00:00Z'};
+assert.equal(groupStories([productNight,productEvening]).length,1,'same cumulative product milestone across midnight');
+assert.equal(groupStories([productNight,{...productEvening,title:productEvening.title.replace('5조원','6조원')}]).length,2);

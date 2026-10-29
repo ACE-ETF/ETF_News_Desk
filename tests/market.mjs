@@ -1,7 +1,7 @@
 import ts from 'typescript';import fs from 'node:fs';import assert from 'node:assert/strict';
 const insightJS=ts.transpileModule(fs.readFileSync('lib/insights.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;const insightURL='data:text/javascript;base64,'+Buffer.from(insightJS).toString('base64');
 const js=ts.transpileModule(fs.readFileSync('lib/market.ts','utf8').replaceAll('./insights',insightURL),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;
-const {marketScope,inMarketView,isSharedInsight,marketOrder}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const {marketScope,inMarketView,isSharedInsight,marketOrder,marketGroupMatches}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
 const check=(title,expected,summary)=>assert.equal(marketScope({title,summary}),expected,title);
 check('ACE 미국S&P500 ETF 신규 상장','domestic');
 check('KODEX 미국나스닥100 ETF 분배금 지급','domestic');
@@ -69,3 +69,6 @@ console.log('PASS: shared insight in both views without relabeling listing venue
 
 assert(marketOrder({title:'ACE 미국S&P500 ETF'})<marketOrder({title:'VOO ETF'}));assert(marketOrder(common)<marketOrder({title:'VOO ETF'}));assert(marketOrder(unclear)>marketOrder({title:'VOO ETF'}));
 console.log('PASS: all-market order domestic listing, shared insights, overseas, unresolved');
+
+assert(marketGroupMatches({a:{title:'하준경, 레버리지 ETF에 송구'},others:[{title:'하준경 정책실장, 청와대 국감에서 레버리지 ETF 사과'}]},'domestic'));
+console.log('PASS: determine market from the whole event group, retaining unclassified related reports');

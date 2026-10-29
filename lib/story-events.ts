@@ -43,10 +43,11 @@ function productEvent(a:Article){
  return {product,event,horizon,value,threshold:/돌파|넘어|넘었|넘는/.test(t),rank:t.match(/수익률.*?(\d+)\s*위/)?.[1]||''};
 }
 function sameProductEvent(a:Article,b:Article){
- if(a.date!==b.date)return undefined;
+ const crossDay=a.date!==b.date;
  const x=productEvent(a),y=productEvent(b);
  if(x.product&&y.product&&x.product!==y.product)return false;
  if(!x.product||!y.product||!x.event||x.event!==y.event)return undefined;
+ if(crossDay&&(Math.abs(Date.parse(a.published)-Date.parse(b.published))>18*3600000||!x.value||x.value!==y.value||!x.horizon&&!y.horizon))return undefined;
  if(x.horizon&&y.horizon&&x.horizon!==y.horizon||x.rank&&y.rank&&x.rank!==y.rank)return false;
  if(x.value&&y.value&&x.value!==y.value){const ratio=Math.max(x.value,y.value)/Math.min(x.value,y.value);if(!(x.threshold||y.threshold)||ratio>1.25)return false}
  return true;

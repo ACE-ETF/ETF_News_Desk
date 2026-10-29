@@ -4,7 +4,7 @@ import {Search,ArrowUpRight,RefreshCw,SlidersHorizontal,Radio,Download,ChevronDo
 import type {Article} from '../lib/news';
 import {sourceDateNote} from '../lib/insights';
 import {isRoutineStory} from '../lib/story-events';
-import {inMarketView,isSharedInsight,marketOrder} from '../lib/market';
+import {marketGroupMatches,isSharedInsight,marketOrder} from '../lib/market';
 import {headlineDigest} from '../lib/digest';
 import {issueKeywords,isAceStory} from '../lib/keywords';
 import {importance,compareImportance} from '../lib/ranking';
@@ -25,7 +25,7 @@ export default function Page(){
  async function load(d:string){setLoading(true);setError('');try{const r=await fetch((document.querySelector<HTMLMetaElement>('meta[name="etf-api-base"]')?.content||'')+'/api/news'+(d?'?date='+d:''));const x=await r.json() as Data & {error?:string};if(!r.ok)throw new Error(x.error||'기사를 불러오지 못했습니다.');setData(x)}catch(e){setError(String(e))}finally{setLoading(false)}}
  useEffect(()=>{void load(date)},[date]);
  useEffect(()=>{setVisible(10)},[date,cat,query,brand,sort,highOnly,group,mode,selectedKeyword,market,includeRoutine]);
- const marketArticles=useMemo(()=>data.articles.filter(a=>(includeRoutine||!isRoutineStory(a))&&inMarketView(a,market)),[data,market,includeRoutine]);
+ const marketArticles=useMemo(()=>groupStories(data.articles.filter(a=>includeRoutine||!isRoutineStory(a))).filter(s=>marketGroupMatches(s,market)).flatMap(s=>[s.a,...s.others]),[data,market,includeRoutine]);
  const filtered=useMemo(()=>marketArticles.filter(a=>(!selectedKeyword||(selectedKeyword==='ACE ETF'?isAceStory(a):issueKeywords(a).subject===selectedKeyword))&&(cat==='전체'||a.category===cat)&&(brand==='전체 브랜드'||a.brands.includes(brand))&&(!highOnly||importance(a).level==='상')&&(!query||[a.title,a.source,...a.brands].join(' ').toLowerCase().includes(query.toLowerCase()))).sort((a,b)=>(market==='all'?marketOrder(a)-marketOrder(b):0)||(sort==='importance'?compareImportance(a,b):b.published.localeCompare(a.published))),[marketArticles,market,cat,brand,query,sort,highOnly,selectedKeyword]);
  const groups=useMemo(()=>groupStories(filtered,group),[filtered,group]);
  const brief=useMemo(()=>briefStories(groups),[groups]);
