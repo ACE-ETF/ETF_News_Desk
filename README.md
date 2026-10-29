@@ -8,9 +8,9 @@
 
 - 이 저장소는 2026-10-29 운영 버전의 소스 스냅샷입니다.
 - 운영 호스팅과 한국 영업일 오전 8시 수집은 기존 Sites 환경에서 계속 실행됩니다.
-- GitHub에 커밋하는 것만으로 운영 사이트가 자동 배포되지는 않습니다.
+- `main` 변경 시 GitHub Actions가 Pages 화면을 빌드하고 배포합니다. 최초 1회 저장소 Settings → Pages → Source를 GitHub Actions로 설정해야 합니다.
 - 수집 기사, 요약 데이터, 운영 인증키, 호스팅 식별자와 로컬 실행 기록은 포함하지 않습니다.
-- GitHub Pages에 바로 배포하는 정적 사이트가 아닙니다. API와 R2 저장소를 사용하는 Cloudflare Workers 기반 앱입니다.
+- GitHub Pages는 뉴스 화면을 제공하고, 기존 Sites API와 R2가 수집·저장을 담당합니다. API 데이터는 페이지를 열거나 새로고침할 때 읽으므로 매일 재배포할 필요가 없습니다.
 
 ## 주요 기능
 
@@ -64,3 +64,14 @@ pnpm build
 ## 이미지 검증
 
 대표 이미지 메타데이터만으로 상품 일치를 판단하지 않습니다. 기사 제목·본문의 상품, 사진 속 상품명·설명·금액을 확인한 뒤 해당 기사 ID와 제목에만 이미지를 연결합니다. 확인되지 않은 이미지는 노출하지 않습니다.
+
+## GitHub Pages 자동 배포
+
+- 화면 주소(첫 배포 완료 후): https://ace-etf.github.io/ETF_News_Desk/
+- 첫 설정: 저장소 Settings → Pages → Build and deployment → Source → GitHub Actions
+- 배포 파일: `.github/workflows/pages.yml`
+- 프런트엔드 전용 빌드: `npm install --prefix pages` 후 `npm run build --prefix pages`
+- `pages/main.tsx`가 운영 앱의 `app/page.tsx`와 CSS를 그대로 사용합니다.
+- Pages 화면은 공개 읽기 API만 사용합니다. 인증키는 프런트엔드와 Actions에 저장하지 않습니다.
+- 서버 수집/분류/저장 코드 변경은 기존 Sites 서버 배포가 별도로 필요합니다. Pages 자동 배포 대상은 화면입니다.
+- 저장소 Settings에서 Pages를 활성화하기 전에는 Actions의 Configure Pages 단계가 실패할 수 있습니다. 설정 후 Actions에서 재실행하세요.

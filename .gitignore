@@ -43,3 +43,7 @@ yarn-error.log*
 
 # OS metadata
 .DS_Store
+
+# GitHub Pages generated output
+/dist-pages/
+/pages/node_modules
