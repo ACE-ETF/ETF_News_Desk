@@ -1,6 +1,6 @@
 import fs from 'node:fs';import ts from 'typescript';import assert from 'node:assert/strict';
 const url=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64');
-const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL));const {compareImportance}=await import(rankURL);const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8'));const {briefStories,groupStories}=await import(url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./ranking',rankURL).replaceAll('./story-events',eventsURL)));
+const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8'));const {briefStories,groupStories}=await import(url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./ranking',rankURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL)));
 const make=(i,title,category)=>({a:{id:String(i),title,category,published:'2026-10-29T00:00:00Z',source:'검증',url:'https://example.com/'+i,brands:[],date:'2026-10-29'},others:[]});
 const stories=[...Array.from({length:12},(_,i)=>make(i,'ETF 순자산 '+(i+1)+'조원 돌파','수급·성과')),...Array.from({length:5},(_,i)=>make(20+i,'운용사 '+i+' ETF 총보수 인하','상품·전략')),make(30,'ETF 특별배당 지급','배당·분배'),make(31,'ETF 신규 상장','신규 상장'),make(32,'ETF 거래정지 안내','제도·시장'),make(33,'ETF 분배금 지급 안내','배당·분배'),make(34,'ETF 경품 이벤트','마케팅')].sort((a,b)=>compareImportance(a.a,b.a));
 const selected=briefStories(stories);assert(selected.length<=6);assert(selected.some(s=>s.a.category==='제도·시장'));assert(selected.filter(s=>s.a.category==='수급·성과').length<=3);assert(!selected.some(s=>['33','34'].includes(s.a.id)));assert.equal(stories.length,22);
@@ -35,3 +35,13 @@ assert.equal(pair('ACE 일라이릴리밸류체인 ETF 6개월 수익률 1위','
 assert.equal(pair('TIGER 배당커버드콜 ETF 개인 순매수 2조원','TIGER 배당커버드콜 ETF 개인 순매수 3조원').length,2);
 assert.equal(pair('금감원, 퇴직연금 ETF 투자한도·위험등급 동시 표기해야','퇴직연금 ETF 투자한도 100%, 원리금 보장 의미 아닙니다').length,1);
 console.log('PASS: historical Korean product coverage; period, rank and amount guards');
+
+const announcement=make(201,'삼성운용, KODEX 미국S&P500·나스닥100 ETF 분배금 117원·71원 지급…28일 지급','배당·분배').a;
+const repeats=[make(202,'삼성자산운용, KODEX 미국 대표지수 ETF 분배금 지급','배당·분배').a,make(203,'삼성자산운용, KODEX 미국지수 ETF 분배금 지급','배당·분배').a,make(204,'삼성자산운용, KODEX 미국S&P500 ETF 분배금 117원 지급','배당·분배').a];
+assert.equal(groupStories([announcement,...repeats]).length,1);
+assert.equal(groupStories([...repeats,announcement]).length,1);
+assert.equal(groupStories([announcement,make(205,'KODEX 미국S&P500 ETF 분배금 118원 지급','배당·분배').a]).length,2);
+assert.equal(groupStories([announcement,make(206,'KODEX 미국S&P500 ETF 11월 분배금 117원 지급','배당·분배').a]).length,2);
+assert.equal(groupStories([announcement,make(207,'KODEX 미국S&P500 ETF 분배금 117원 29일 지급','배당·분배').a]).length,2);
+assert.equal(groupStories([announcement,make(208,'KODEX 미국S&P500 ETF 분배금 삭감','배당·분배').a]).length,2);
+console.log('PASS: combined-announcement anchor, generic index aliases, single-fund excerpt, amount/month/payment-date/risk guards');
