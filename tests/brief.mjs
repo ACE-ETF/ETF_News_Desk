@@ -1,6 +1,6 @@
 import fs from 'node:fs';import ts from 'typescript';import assert from 'node:assert/strict';
 const url=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64');
-const insightURL=url(fs.readFileSync('lib/insights.ts','utf8'));const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL).replaceAll('./insights',insightURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8'));const {briefStories,groupStories}=await import(url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./insights',insightURL).replaceAll('./ranking',rankURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL)));
+const insightURL=url(fs.readFileSync('lib/insights.ts','utf8'));const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL).replaceAll('./insights',insightURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const overseasURL=url(fs.readFileSync('lib/overseas-events.ts','utf8'));const statementURL=url(fs.readFileSync('lib/statement-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8').replaceAll('./statement-events',statementURL).replaceAll('./overseas-events',overseasURL));const {briefStories,groupStories}=await import(url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./insights',insightURL).replaceAll('./ranking',rankURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL)));
 const make=(i,title,category)=>({a:{id:String(i),title,category,published:'2026-10-29T00:00:00Z',source:'검증',url:'https://example.com/'+i,brands:[],date:'2026-10-29'},others:[]});
 const stories=[...Array.from({length:12},(_,i)=>make(i,'ETF 순자산 '+(i+1)+'조원 돌파','수급·성과')),...Array.from({length:5},(_,i)=>make(20+i,'운용사 '+i+' ETF 총보수 인하','상품·전략')),make(30,'ETF 특별배당 지급','배당·분배'),make(31,'ETF 신규 상장','신규 상장'),make(32,'ETF 거래정지 안내','제도·시장'),make(33,'ETF 분배금 지급 안내','배당·분배'),make(34,'ETF 경품 이벤트','마케팅')].sort((a,b)=>compareImportance(a.a,b.a));
 const selected=briefStories(stories);assert.equal(selected.length,10);assert(selected.some(s=>s.a.category==='제도·시장'));assert(selected.filter(s=>s.a.category==='수급·성과').length<=4);assert(!selected.some(s=>['33','34'].includes(s.a.id)));assert.equal(stories.length,22);
@@ -66,3 +66,39 @@ assert(insightBrief.some(s=>s.a.id==='32'));assert.equal(insightBrief.length,10)
 const smallLimit=briefStories([make(500,'ETF 총보수 인하','상품·전략'),make(501,ideas[0],'상품·전략')],1);assert.equal(smallLimit[0].a.id,'500','analysis has no reserved slot');
 assert.equal(rankingModule.importance({title:'SEC approves new ETF portfolio rules',category:'제도·시장'}).score,60,'opinion signal must not stack on regulation');
 assert(!insightKind({title:'새로운 액티브 ETF 상품 안내'}));console.log('PASS: modest analysis signals, ten initial stories, no reserved slots or stacked opinion boosts');
+
+const speech=(id,title,published='2026-10-29T14:00:00Z')=>({...make(id,title,'제도·시장').a,published,date:new Date(Date.parse(published)+9*3600000).toISOString().slice(0,10)});
+const speechTitles=[
+ '하준경 “레버리지 ETF 논란 송구… 최종 결정은 금융위”',
+ '하준경, 레버리지 ETF 논란에 "손실 본 분들 있어 송구... 최종 결정은 금융위"',
+ '하준경, 레버리지 ETF 손실에 "송구"…정책 실패엔 선 긋고 "금융위 결정"',
+ '하준경 정책실장 "송구스럽다"...레버리지ETF 논란에 사과',
+ '“국민께 송구”…하준경 정책실장, 레버리지 ETF 논란 사과',
+ '야당 레버리지 ETF 도입 추궁‥하준경 "국민께 심려 끼쳐 송구"',
+ '하준경 청와대 정책실장 "ETF로 국민 큰 변동성 노출…대책 마련"',
+ '하준경, 레버리지 ETF에 도입 시기, 주식시장 재평가 맞물려 큰 변동성',
+ '하준경 "레버리지 ETF 손실 국민께 송구"…정책 실패엔 선 그어'
+];
+const statements=speechTitles.map((t,i)=>speech(600+i,t,i===1?'2026-10-29T22:00:00Z':'2026-10-29T14:00:00Z'));
+assert.equal(groupStories(statements).length,1,'same statement, title aliases, evening and next morning');
+assert.equal(groupStories([...statements].reverse()).length,1);
+assert.equal(groupStories([statements[0],speech(620,'권대영 "레버리지 ETF 논란 송구"')]).length,2,'different speaker');
+assert.equal(groupStories([statements[0],speech(621,'하준경 "레버리지 ETF 정책 실패 인정"')]).length,2,'opposite stance');
+assert.equal(groupStories([statements[0],speech(622,'하준경 "레버리지 ETF 도입 철회 결정"')]).length,2,'new action');
+assert.equal(groupStories([statements[0],speech(623,speechTitles[0],'2026-10-30T14:00:00Z')]).length,2,'next separate day');
+const day29={...statements[0],summary:'하준경 정책실장은 29일 국감에서 레버리지 ETF 논란에 사과했다.',summaryKind:'summary'};
+const day30={...speech(624,speechTitles[0],'2026-10-29T22:00:00Z'),summary:'하준경 정책실장은 30일 국감에서 레버리지 ETF 논란에 사과했다.',summaryKind:'summary'};
+assert.equal(groupStories([day29,day30]).length,2,'different explicit event dates');
+const summarized={...statements[1],summary:'확인된 발언의 요약입니다.',summaryKind:'summary'};assert.equal(groupStories([statements[0],summarized])[0].a.id,summarized.id);
+console.log('PASS: statement event grouping by speaker/topic/stance, midnight syndication, dates and new policy guard, verified-summary representative');
+
+assert.equal(pair('Gold ETF AUM rises to Rs 1.86 lakh crore, top 5 schemes account for 80 pc of assets','Gold ETFs manage ₹1.9 trillion despite Sept correction; top 5 control 80%').length,1);
+assert.equal(pair('Gold ETF AUM Rs 1.86 lakh crore','Gold ETF AUM Rs 1.87 lakh crore').length,2);
+assert.equal(pair('Gold ETF AUM Rs 1.86 lakh crore','Silver ETF AUM Rs 1.86 lakh crore').length,2);
+assert.equal(pair('Gold ETF AUM Rs 1.86 lakh crore in September','Gold ETF AUM Rs 1.86 lakh crore in October').length,2);
+assert.equal(pair('Bitcoin Spot ETFs Extend Inflow Streak to Three Days With $137.33 Million','US Bitcoin ETFs Draw $137 Million, Extend Inflow Streak to Three Sessions').length,1);
+assert.equal(pair('Ethereum spot ETFs lose $21.41 million as outflows extend to three sessions','U.S. spot Ether ETFs see $21.4M outflow, led by BlackRock on Oct. 28').length,1);
+assert.equal(pair('Bitcoin ETFs see $137M inflows over two days','Bitcoin ETFs see $137M daily inflows').length,2);
+assert.equal(pair('IBIT ETF inflows hit $137M','Bitcoin spot ETFs draw $137M inflows').length,2);
+assert(isRoutineStory({title:'Form FWP VanEck Merk Gold ETF Filed by: VanEck Merk Gold ETF'}));assert(isRoutineStory({title:'U.S. spot XRP ETF inflows exceed $1.8 billion, XRP holders can earn up to $10,000 daily'}));
+console.log('PASS: gold AUM currency/rounding, aggregate crypto flow title aliases, date/period/fund boundaries, promotional and filing exclusions');

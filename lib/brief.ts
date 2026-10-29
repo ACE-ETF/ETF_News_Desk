@@ -20,7 +20,7 @@ export function groupStories(articles:Article[],enabled=true):Story[]{
  const result:Story[]=[];
  for(const a of articles){
   const found=enabled?result.find(x=>{const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
-  if(found){if(![found.a,...found.others].some(b=>b.id===a.id||b.url===a.url))found.others.push(a)}else result.push({a,others:[]});
+  if(found){if(![found.a,...found.others].some(b=>b.id===a.id||b.url===a.url)){if(a.summary&&!found.a.summary){found.others.push(found.a);found.a=a}else found.others.push(a)}}else result.push({a,others:[]});
  }
  return result;
 }

@@ -1,6 +1,8 @@
+import {sameOverseasEvent} from './overseas-events';
+import {sameStatementEvent} from './statement-events';
 import type {Article} from './news';
 // Preserve stored articles; suppress quote pages and recurring templates only in the view.
-export function isRoutineStory(a:Pick<Article,'title'>){return /could top \d+x|price (?:forecast|prediction)|presale|stock price,?\s*news,?\s*quote\s*(?:&|and)\s*history|options? chain|unsponsored brazilian deposit[ao]ry receipt|latest stock price, analysis|\bForm\s+\d+[A-Z-]*\b|if you invested|how much you would have made|prediction:|should (?:you invest|.{0,70}be on your investing radar)|is .{0,80}a strong ETF right now|what .{0,90}ETF.{0,20}(?:bought|sold):|\bETF\b.{0,30}(?:adds|sells) (?:NVIDIA|Apple|Amazon).{0,35}on Oct|\b\d+ (?:defensive sector )?ETFs? (?:a retiree|to (?:consider|protect)|can buy)|these \d+ ETFs? put it to work/i.test(a.title)}
+export function isRoutineStory(a:Pick<Article,'title'>){return /earn.{0,20}\$[\d,]+.{0,12}daily|Form\s+FWP\b|(?:Bitcoin|Ethereum|Solana|XRP).{0,15}(?:price|trades?|falls|struggles|reclaims).*ETFs?|CryptoQuant Founder.*(?:bullish|recovery)|could top \d+x|price (?:forecast|prediction)|presale|stock price,?\s*news,?\s*quote\s*(?:&|and)\s*history|options? chain|unsponsored brazilian deposit[ao]ry receipt|latest stock price, analysis|\bForm\s+\d+[A-Z-]*\b|if you invested|how much you would have made|prediction:|should (?:you invest|.{0,70}be on your investing radar)|is .{0,80}a strong ETF right now|what .{0,90}ETF.{0,20}(?:bought|sold):|\bETF\b.{0,30}(?:adds|sells) (?:NVIDIA|Apple|Amazon).{0,35}on Oct|\b\d+ (?:defensive sector )?ETFs? (?:a retiree|to (?:consider|protect)|can buy)|these \d+ ETFs? put it to work/i.test(a.title)}
 // Used for briefing diversity only; all original crypto articles remain available.
 export function isCryptoStory(a:Pick<Article,'title'>){return /bitcoin|ethereum|\bether\b|solana|\b(?:BTC|ETH|XRP|IBIT|FBTC|GBTC|ETHA|ETHE)\b|hyperliquid|zcash|dogecoin|litecoin|\b(?:HYPE|ZEC|DOGE|LTC)\b|crypto|blockchain|하이퍼리퀴드|지캐시|도지코인|라이트코인|비트코인|이더리움|솔라나|리플|가상자산|암호화폐/i.test(a.title)}
 const issuers:[RegExp,string][]=[[/BlackRock|iShares|블랙록/i,'blackrock'],[/Vanguard|뱅가드/i,'vanguard'],[/VanEck|반에크/i,'vaneck'],[/Fidelity|피델리티/i,'fidelity'],[/State Street|SPDR/i,'statestreet'],[/\bACE\b|한국투자/i,'ace'],[/\bTIGER\b|미래에셋/i,'tiger'],[/\bKODEX\b|삼성(?:자산)?운용/i,'kodex'],[/\bKIWOOM\b|키움(?:투자)?(?:자산)?운용/i,'kiwoom'],[/한화(?:자산)?운용|\bPLUS\s*[가-힣]/i,'plus']];
@@ -52,9 +54,12 @@ function sameProductEvent(a:Article,b:Article){
 function pensionDisclosure(t:string){return /퇴직연금/.test(t)&&/ETF/.test(t)&&/위험등급|투자한도|100%/.test(t)&&/보장|표시|표기/.test(t)}
 export function canGroupStories(a:Article,b:Article){
  const t=a.title,u=b.title,ia=issuer(t),ib=issuer(u),aa=asset(t),ab=asset(u),ta=tickers(t),tb=tickers(u);
- if(ia&&ib&&ia!==ib||aa&&ab&&aa!==ab||ta.length&&tb.length&&ta.join('+')!==tb.join('+'))return false;
+ 
  const ra=referenceDate(t),rb=referenceDate(u);if(ra&&rb&&ra!==rb)return false;
  const gap=Math.abs(Date.parse(a.published)-Date.parse(b.published));if(gap>36*3600000)return false;
+ const overseasMatch=sameOverseasEvent(a,b);if(overseasMatch!==undefined)return overseasMatch;
+ if(ia&&ib&&ia!==ib||aa&&ab&&aa!==ab||ta.length&&tb.length&&ta.join('+')!==tb.join('+'))return false;
+ const statementMatch=sameStatementEvent(a,b);if(statementMatch!==undefined)return statementMatch;
  const productMatch=sameProductEvent(a,b);if(productMatch!==undefined)return productMatch;
  if(a.date===b.date&&pensionDisclosure(t)&&pensionDisclosure(u))return true;
  if(a.date===b.date&&/SK하이닉스/.test(t)&&/SK하이닉스/.test(u)&&/레버리지.*청산/.test(t)&&/레버리지.*청산/.test(u))return true;

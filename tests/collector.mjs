@@ -64,9 +64,9 @@ const archived=await mod.getNews('2026-10-31');assert.equal(archived.window.star
 
 const queries=mod.collectionQueries({start:Date.parse('2026-10-27T23:00Z'),end:Date.parse('2026-10-28T23:00Z')});
 const english=queries.filter(q=>q.gl==='US');assert.equal(english.length,3);
-assert.equal(english.filter(q=>q.q.includes('-bitcoin')).length,2);
+assert.equal(english.filter(q=>q.q.includes('-bitcoin')).length,3);
 for(const theme of ['equity','bond','gold','fees'])assert(english.some(q=>q.q.includes(theme)&&q.q.includes('-crypto')));
-assert.equal(english.filter(q=>q.q.includes('(bitcoin OR ethereum OR crypto)')).length,1);
+assert.equal(english.filter(q=>q.q.includes('(bitcoin OR ethereum OR crypto)')).length,0);
 console.log('PASS: separate equity, fixed income, commodity and industry searches, bounded dedicated crypto feed');
 
 Date.now=()=>Date.parse('2026-10-29T00:15:00Z');

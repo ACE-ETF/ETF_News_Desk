@@ -21,7 +21,7 @@ export function collectionQueries(window:{start:number;end:number}){
    'ETF (equity OR sector OR dividend OR launch OR fees OR regulation) (Vanguard OR iShares OR SPDR OR Invesco OR Schwab OR Nasdaq)',
    'ETF (bond OR Treasury OR credit OR "fixed income" OR gold OR commodity)'
   ].map(q=>({q:q+' -bitcoin -ethereum -crypto -cryptocurrency -solana -XRP -dogecoin -blockchain',hl:'en-US',gl:'US',ceid:'US:en'})),
-  {q:'ETF (bitcoin OR ethereum OR crypto) (approval OR regulation OR launch OR inflows OR outflows)',hl:'en-US',gl:'US',ceid:'US:en'}
+  {q:'ETF (launch OR fees OR regulation OR "active ETF" OR dividend) -bitcoin -ethereum -crypto -cryptocurrency -solana -XRP -blockchain',hl:'en-US',gl:'US',ceid:'US:en'}
  ];
  const period=window.end-window.start===86400000?' when:2d':' after:'+new Date(window.start-86400000).toISOString().slice(0,10)+' before:'+new Date(window.end+86400000).toISOString().slice(0,10);
  // One wide search window also covers weekends/holidays without multiplying requests per day.
