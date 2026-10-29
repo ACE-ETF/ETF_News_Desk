@@ -38,19 +38,29 @@ function productEvent(a:Article){
  if(!product&&/미래에셋/.test(t)&&/['‘“]배당커버드콜(?:액티브)?\s*ETF/.test(t))product='TIGER배당커버드콜';
  const event=/순매수|개인.*유입/.test(t)?'buy':/순매도|개인.*유출/.test(t)?'sell':/순자산/.test(t)?'aum':/수익률.*\d+위/.test(t)?'return-rank':'';
  const period=t.match(/(\d+)\s*개월/)?.[1]+'month';
- const horizon=period!=='undefinedmonth'?period:/연초|올해/.test(t)?'ytd':t.match(/(\d+)\s*년/)?.[1]?t.match(/(\d+)\s*년/)![1]+'year':'';
+ const horizon=period!=='undefinedmonth'?period:/연초|올해|올\s*들어/.test(t)?'ytd':t.match(/(\d+)\s*년/)?.[1]?t.match(/(\d+)\s*년/)![1]+'year':'';
  const amount=t.match(/(\d[\d,.]*)\s*(조|억)/);const value=amount?Number(amount[1].replace(/,/g,''))*(amount[2]==='조'?1e12:1e8):0;
- return {product,event,horizon,value,threshold:/돌파|넘어|넘었|넘는/.test(t),rank:t.match(/수익률.*?(\d+)\s*위/)?.[1]||''};
+ return {product,event,horizon,value,unit:amount?(amount[2]==='조'?1e12:1e8):0,threshold:/돌파|넘어|넘었|넘는/.test(t),rank:t.match(/수익률.*?(\d+)\s*위/)?.[1]||''};
 }
 function sameProductEvent(a:Article,b:Article){
  const crossDay=a.date!==b.date;
  const x=productEvent(a),y=productEvent(b);
  if(x.product&&y.product&&x.product!==y.product)return false;
  if(!x.product||!y.product||!x.event||x.event!==y.event)return undefined;
- if(crossDay&&(Math.abs(Date.parse(a.published)-Date.parse(b.published))>18*3600000||!x.value||x.value!==y.value||!x.horizon&&!y.horizon))return undefined;
+ if(crossDay&&(/하루|일간|당일|일일|첫\s*거래일/.test(a.title+b.title)||Math.abs(Date.parse(a.published)-Date.parse(b.published))>18*3600000||!x.value||x.value!==y.value||!x.horizon&&!y.horizon&&!(x.threshold&&y.threshold&&/최초|처음|첫/.test(a.title+b.title))))return undefined;
  if(x.horizon&&y.horizon&&x.horizon!==y.horizon||x.rank&&y.rank&&x.rank!==y.rank)return false;
- if(x.value&&y.value&&x.value!==y.value){const ratio=Math.max(x.value,y.value)/Math.min(x.value,y.value);if(!(x.threshold||y.threshold)||ratio>1.25)return false}
+ if(x.value&&y.value&&x.value!==y.value){const unit=Math.max(x.unit,y.unit);if(Number.isInteger(x.value/unit)&&Number.isInteger(y.value/unit))return false;const ratio=Math.max(x.value,y.value)/Math.min(x.value,y.value);if(!(x.threshold||y.threshold)||ratio>1.25)return false}
  return true;
+}
+// A record headline may omit the amount. Attach it only when nearby reports for
+// that exact fund/event have one unambiguous amount, never to an arbitrary match.
+export function canJoinRecordMilestone(a:Article,b:Article,articles:Article[]):boolean|undefined{
+ const x=productEvent(a),y=productEvent(b);if(!x.product||x.product!==y.product||!x.event||x.event!==y.event||!!x.value===!!y.value)return undefined;
+ const missing=x.value?b:a,known=x.value?x:y,m=productEvent(missing);
+ if(!/역대\s*최대|역대\s*최고/.test(missing.title)||/하루|일간|당일|일일/.test(a.title+b.title))return undefined;
+ if(Math.abs(Date.parse(a.published)-Date.parse(b.published))>18*3600000||m.horizon&&known.horizon&&m.horizon!==known.horizon)return false;
+ const values=new Set(articles.filter(c=>Math.abs(Date.parse(c.published)-Date.parse(missing.published))<=18*3600000).map(productEvent).filter(c=>c.product===m.product&&c.event===m.event&&c.value&&(!m.horizon||!c.horizon||m.horizon===c.horizon)).map(c=>c.value));
+ return values.size===1&&values.has(known.value);
 }
 function pensionDisclosure(t:string){return /퇴직연금/.test(t)&&/ETF/.test(t)&&/위험등급|투자한도|100%/.test(t)&&/보장|표시|표기/.test(t)}
 export function canGroupStories(a:Article,b:Article){

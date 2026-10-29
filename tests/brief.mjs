@@ -107,3 +107,19 @@ const productNight={...make(700,'미래에셋 TIGER 미국S&P500 ETF, 개인 순
 const productEvening={...make(701,'미래에셋 TIGER 미국S&P500 ETF, 연초 이후 개인 순매수 5조원 돌파','수급·성과').a,date:'2026-10-29',published:'2026-10-29T09:00:00Z'};
 assert.equal(groupStories([productNight,productEvening]).length,1,'same cumulative product milestone across midnight');
 assert.equal(groupStories([productNight,{...productEvening,title:productEvening.title.replace('5조원','6조원')}]).length,2);
+
+assert.equal(groupStories([productNight,{...productEvening,title:'미래에셋 TIGER 미국S&P500 ETF, 개인 순매수 5조원 돌파…국내 최초'}]).length,1,'same explicitly first cumulative milestone despite omitted horizon');
+
+assert.equal(groupStories([productNight,{...productEvening,title:'미래에셋자산운용 "TIGER 미국S&P500 ETF, 개인 순매수 5조원 처음 넘어"'}]).length,1,'first/record threshold aliases across midnight');
+
+assert.equal(groupStories([productNight,{...productEvening,title:'TIGER 미국S&P500, 개인 순매수 5조원 돌파…국내 ETF 첫 기록'}]).length,1,'omitted ETF suffix and first-record alias');
+
+assert.equal(groupStories([productNight,{...productEvening,title:'미래에셋자산운용, TIGER 미국S&P500 ETF…개인 순매수 첫 5조원 돌파'}]).length,1);
+assert.equal(groupStories([{...productNight,title:'TIGER 미국S&P500 ETF, 하루 개인 순매수 5조원 돌파'},{...productEvening,title:'TIGER 미국S&P500 ETF, 하루 개인 순매수 첫 5조원 돌파'}]).length,2,'do not join different daily flow dates');
+
+assert.equal(groupStories([productNight,{...productEvening,title:"TIGER 미국S&P500 ETF, 올 들어 개인 순매수 '5조원' 돌파"}]).length,1,'YTD and quoted amount aliases');
+
+const noAmount={...productEvening,id:'record-no-amount',url:'https://example.com/no-amount',title:'미래에셋자산운용 TIGER 미국S&P500 ETF 개인 순매수 역대 최대'};
+assert.equal(groupStories([productNight,noAmount]).length,1,'omitted amount with a unique nearby milestone');
+const differentAmount={...productNight,id:'other-record',url:'https://example.com/other',title:productNight.title.replace('5조원','6조원')};
+assert.equal(groupStories([productNight,differentAmount,noAmount]).length,3,'ambiguous amount must not absorb the generic record');
