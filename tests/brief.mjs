@@ -1,8 +1,29 @@
 import fs from 'node:fs';import ts from 'typescript';import assert from 'node:assert/strict';
 const url=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64');
-const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL));const {compareImportance}=await import(rankURL);const {briefStories,groupStories}=await import(url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./ranking',rankURL)));
+const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL));const {compareImportance}=await import(rankURL);const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8'));const {briefStories,groupStories}=await import(url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./ranking',rankURL).replaceAll('./story-events',eventsURL)));
 const make=(i,title,category)=>({a:{id:String(i),title,category,published:'2026-10-29T00:00:00Z',source:'검증',url:'https://example.com/'+i,brands:[],date:'2026-10-29'},others:[]});
 const stories=[...Array.from({length:12},(_,i)=>make(i,'ETF 순자산 '+(i+1)+'조원 돌파','수급·성과')),...Array.from({length:5},(_,i)=>make(20+i,'운용사 '+i+' ETF 총보수 인하','상품·전략')),make(30,'ETF 특별배당 지급','배당·분배'),make(31,'ETF 신규 상장','신규 상장'),make(32,'ETF 거래정지 안내','제도·시장'),make(33,'ETF 분배금 지급 안내','배당·분배'),make(34,'ETF 경품 이벤트','마케팅')].sort((a,b)=>compareImportance(a.a,b.a));
-const selected=briefStories(stories);assert(selected.length<=10);assert(selected.some(s=>s.a.category==='제도·시장'));assert(selected.filter(s=>s.a.category==='수급·성과').length<=3);assert(!selected.some(s=>['33','34'].includes(s.a.id)));assert.equal(stories.length,22);
+const selected=briefStories(stories);assert(selected.length<=6);assert(selected.some(s=>s.a.category==='제도·시장'));assert(selected.filter(s=>s.a.category==='수급·성과').length<=3);assert(!selected.some(s=>['33','34'].includes(s.a.id)));assert.equal(stories.length,22);
 const grouped=groupStories([make(50,'TIGER 200 ETF, 삼성전자 특별배당 반영','배당·분배').a,make(51,'삼성전자 특별배당 효과…TIGER 200 분배금 확대','배당·분배').a]);assert.equal(grouped.length,1);assert.equal(grouped[0].others.length,1);assert.equal(groupStories(grouped.flatMap(g=>[g.a,...g.others]),false).length,2);
 console.log('PASS: brief count limit, category diversity, risk retention, routine/marketing exclusions, original data retained, grouped related articles');
+
+const {isRoutineStory}=await import(eventsURL);
+const pair=(a,b)=>groupStories([make(100,a,'수급·성과').a,make(101,b,'수급·성과').a]);
+assert.equal(pair('Bitcoin ETF inflows climb to $176M as BTC rebounds','Bitcoin spot ETFs attract $175.99 million as all 12 funds avoid outflows').length,1);
+assert.equal(pair('BlackRock launches two active European credit ETFs','BlackRock to expand active ETF range with two euro credit strategies').length,1);
+assert.equal(pair('Bitcoin ETF inflows hit $176M','Bitcoin ETF outflows hit $176M').length,2);
+assert.equal(pair('Bitcoin ETF inflows hit $176M','Bitcoin ETF inflows hit $286M').length,2);
+assert.equal(pair('Bitcoin ETF inflows hit $176M','Ethereum ETF inflows hit $176M').length,2);
+assert.equal(pair('IBIT ETF inflows hit $176M','FBTC ETF inflows hit $176M').length,2);
+assert.equal(pair('Bitcoin ETF October outflows shrink to $26M','Bitcoin ETF daily outflows shrink to $26M').length,2);
+assert.equal(pair('Bitcoin ETF inflows on Oct 27 hit $176M','Bitcoin ETF inflows on Oct 28 hit $176M').length,2);
+const d1=make(102,'Daily ETF Flows: Junk Bond ETF Inflows','수급·성과').a,d2={...d1,id:'103',url:'https://example.com/103',date:'2026-10-28',published:'2026-10-28T00:00:00Z'};assert.equal(groupStories([d1,d2]).length,2);
+assert(isRoutineStory({title:'Vanguard S&P 500 ETF (VOO) Stock Price, News, Quote & History'}));
+assert(isRoutineStory({title:'iShares MSCI Japan ETF Options Chain'}));
+assert(!isRoutineStory({title:'Vanguard launches a bond ETF with lower fees'}));
+console.log('PASS: same-event compression, rounded flow amount, issuer/fund/asset/date/direction/period separation, routine exclusion');
+
+assert.equal(pair('삼성운용, KODEX 미국S&P500·나스닥100 ETF 분배금 지급','삼성자산운용, 미국 대표지수 ETF 2종 분배금 지급').length,1);
+assert.equal(pair('KODEX 미국S&P500 ETF 분배금 지급','KODEX 미국나스닥100 ETF 분배금 지급').length,2);
+assert.equal(pair('한화운용, 글로벌HBM반도체 ETF 개인 자금 6000억원 유입','PLUS 글로벌HBM반도체, 개인 순매수 1위').length,1);
+assert(isRoutineStory({title:"Bitcoin ETF Outflows - Could Top 1000x"}));
