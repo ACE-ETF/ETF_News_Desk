@@ -1,16 +1,14 @@
-import {insightKind,sourceDateNote} from './insights';
+import {sourceDateNote} from './insights';
 import {distributionEventKeys} from './distribution-events';
 import {canGroupStories,isCryptoStory} from './story-events';
 import {importance} from './ranking';
 import type {Article} from './news';
 export type Story={a:Article;others:Article[]};
-export function briefStories(stories:Story[],limit=6){
- const eligible=stories.filter(s=>!sourceDateNote(s.a)&&importance(s.a).score>=35&&s.a.category!=='마케팅');
+export function briefStories(stories:Story[],limit=10){
+ const eligible=stories.filter(s=>!sourceDateNote(s.a)&&importance(s.a).score>=20&&s.a.category!=='마케팅');
  const selected:Story[]=[];const counts=new Map<string,number>();
- const add=(story:Story)=>{if(selected.length>=limit||selected.includes(story))return false;if(isCryptoStory(story.a)&&selected.some(s=>isCryptoStory(s.a)))return false;const n=counts.get(story.a.category)||0;if(n>=3&&importance(story.a).level!=='상')return false;selected.push(story);counts.set(story.a.category,n+1);return true};
- // Risk/regulation first; reserve up to two remaining places for analysis, then fill normally.
- for(const story of eligible)if(importance(story.a).level==='상')add(story);
- let insights=0;for(const story of eligible)if(insights<2&&insightKind(story.a)&&!selected.includes(story)&&add(story))insights++;
+ const add=(story:Story)=>{if(selected.length>=limit||selected.includes(story))return false;if(isCryptoStory(story.a)&&selected.some(s=>isCryptoStory(s.a)))return false;const n=counts.get(story.a.category)||0;if(n>=Math.ceil(limit*0.4)&&importance(story.a).level!=='상')return false;selected.push(story);counts.set(story.a.category,n+1);return true};
+ // Use the incoming importance/time order; no reserved slots for an editorial theme.
  for(const story of eligible)add(story);
  return selected;
 }

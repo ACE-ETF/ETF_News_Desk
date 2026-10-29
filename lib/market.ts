@@ -29,3 +29,5 @@ export function isSharedInsight(article:Pick<Article,'title'|'summary'|'summaryK
  const scope=marketScope(article);return !!insightKind(article)&&(scope==='mixed'||scope==='unknown');
 }
 export function inMarketView(article:Pick<Article,'title'|'summary'|'summaryKind'|'marketHint'>,view:MarketView){return view==='all'||marketScope(article)===view||isSharedInsight(article)}
+
+export function marketOrder(a:Pick<Article,'title'|'summary'|'summaryKind'|'marketHint'>){const scope=marketScope(a);return scope==='domestic'?0:isSharedInsight(a)?1:scope==='overseas'?2:3}

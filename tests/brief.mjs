@@ -3,7 +3,7 @@ const url=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{co
 const insightURL=url(fs.readFileSync('lib/insights.ts','utf8'));const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL).replaceAll('./insights',insightURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8'));const {briefStories,groupStories}=await import(url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./insights',insightURL).replaceAll('./ranking',rankURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL)));
 const make=(i,title,category)=>({a:{id:String(i),title,category,published:'2026-10-29T00:00:00Z',source:'검증',url:'https://example.com/'+i,brands:[],date:'2026-10-29'},others:[]});
 const stories=[...Array.from({length:12},(_,i)=>make(i,'ETF 순자산 '+(i+1)+'조원 돌파','수급·성과')),...Array.from({length:5},(_,i)=>make(20+i,'운용사 '+i+' ETF 총보수 인하','상품·전략')),make(30,'ETF 특별배당 지급','배당·분배'),make(31,'ETF 신규 상장','신규 상장'),make(32,'ETF 거래정지 안내','제도·시장'),make(33,'ETF 분배금 지급 안내','배당·분배'),make(34,'ETF 경품 이벤트','마케팅')].sort((a,b)=>compareImportance(a.a,b.a));
-const selected=briefStories(stories);assert(selected.length<=6);assert(selected.some(s=>s.a.category==='제도·시장'));assert(selected.filter(s=>s.a.category==='수급·성과').length<=3);assert(!selected.some(s=>['33','34'].includes(s.a.id)));assert.equal(stories.length,22);
+const selected=briefStories(stories);assert.equal(selected.length,10);assert(selected.some(s=>s.a.category==='제도·시장'));assert(selected.filter(s=>s.a.category==='수급·성과').length<=4);assert(!selected.some(s=>['33','34'].includes(s.a.id)));assert.equal(stories.length,22);
 const grouped=groupStories([make(50,'TIGER 200 ETF, 삼성전자 특별배당 반영','배당·분배').a,make(51,'삼성전자 특별배당 효과…TIGER 200 분배금 확대','배당·분배').a]);assert.equal(grouped.length,1);assert.equal(grouped[0].others.length,1);assert.equal(groupStories(grouped.flatMap(g=>[g.a,...g.others]),false).length,2);
 console.log('PASS: brief count limit, category diversity, risk retention, routine/marketing exclusions, original data retained, grouped related articles');
 
@@ -58,9 +58,11 @@ assert(!isCryptoStory({title:'SOL AI반도체 ETF'}));
 const {insightKind}=await import(insightURL);
 const ideas=['프런티어AI, 앤트로픽(Anthropic) 담은 ETF','글로벌 운용자산 380조 원… 세계 ETF 시장서 11위 올라','반도체 주춤하자 K뷰티 날았다…화장품 ETF 한달 새 40%↑','IT株 54곳 산업재로 이동…삼성SDI·LG전자 ETF 3200억 매물 쏟아질듯'];
 const rankingModule=await import(rankURL);
-for(const title of ideas){assert(insightKind({title}));assert(importanceForTest(title)>=35)}
+for(const title of ideas){assert(insightKind({title}));assert(importanceForTest(title)>=20&&importanceForTest(title)<35)}
 function importanceForTest(title){return rankingModule.importance({title,category:'상품·전략'}).score}
 
 const insightBrief=briefStories([...stories,...ideas.map((t,i)=>make(400+i,t,'상품·전략'))].sort((a,b)=>compareImportance(a.a,b.a)));
-assert(insightBrief.some(s=>s.a.id==='32'));assert(insightBrief.some(s=>s.a.title===ideas[3]));assert(insightBrief.filter(s=>insightKind(s.a)).length>=2);assert(insightBrief.length<=6);
-assert(!insightKind({title:'새로운 액티브 ETF 상품 안내'}));console.log('PASS: idea/industry/index opinion eligibility and briefing slots, high-risk priority');
+assert(insightBrief.some(s=>s.a.id==='32'));assert.equal(insightBrief.length,10);
+const smallLimit=briefStories([make(500,'ETF 총보수 인하','상품·전략'),make(501,ideas[0],'상품·전략')],1);assert.equal(smallLimit[0].a.id,'500','analysis has no reserved slot');
+assert.equal(rankingModule.importance({title:'SEC approves new ETF portfolio rules',category:'제도·시장'}).score,60,'opinion signal must not stack on regulation');
+assert(!insightKind({title:'새로운 액티브 ETF 상품 안내'}));console.log('PASS: modest analysis signals, ten initial stories, no reserved slots or stacked opinion boosts');
