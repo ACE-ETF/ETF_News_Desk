@@ -72,3 +72,12 @@ console.log('PASS: all-market order domestic listing, shared insights, overseas,
 
 assert(marketGroupMatches({a:{title:'하준경, 레버리지 ETF에 송구'},others:[{title:'하준경 정책실장, 청와대 국감에서 레버리지 ETF 사과'}]},'domestic'));
 console.log('PASS: determine market from the whole event group, retaining unclassified related reports');
+
+assert(isAceStory({title:'일반 ETF의 운용 구조 논란',summary:'ACE 테슬라밸류체인액티브의 편입 구조를 다룬 보도.',summaryKind:'summary'}));
+assert(!isAceStory({title:'General ETF news',summary:'ACE ETF 관련 기사',summaryKind:'title_translation'}));
+const brandsJS=ts.transpileModule(fs.readFileSync('lib/verified-brands.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
+const {articleBrands}=await import('data:text/javascript;base64,'+Buffer.from(brandsJS).toString('base64'));
+assert.deepEqual(articleBrands({id:'test',title:'일반 ETF의 운용 구조 논란',brands:[],summary:'ACE 상품 편입에 관한 확인된 요약',summaryKind:'summary'}),['ACE']);
+assert.deepEqual(articleBrands({id:'test',title:'General ETF news',brands:[],summary:'ACE ETF 관련 기사',summaryKind:'title_translation'}),[]);
+assert.deepEqual(articleBrands({id:'647507794034032f9b7a92d9d2d3eb942223855d0fb36fd1c9155c545533fa69',title:'일반 ETF 속에 3배 레버리지…꼼수 운용 논란',brands:[]}),['ACE']);
+console.log('PASS: verified excerpt and summary brand evidence; translations cannot invent brand membership');

@@ -14,7 +14,8 @@ const holidaysURL='data:text/javascript;base64,'+Buffer.from(compile(fs.readFile
 const classifyURL='data:text/javascript;base64,'+Buffer.from(compile(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidaysURL))).toString('base64');
 const verifiedImagesURL='data:text/javascript;base64,'+Buffer.from(compile(fs.readFileSync('lib/verified-images.ts','utf8'))).toString('base64');
 const feedsURL='data:text/javascript;base64,'+Buffer.from(compile(fs.readFileSync('lib/feed-requests.ts','utf8').replace('ms=>new Promise(resolve=>setTimeout(resolve,ms))','async()=>{}'))).toString('base64');
-const source=fs.readFileSync('lib/news.ts','utf8').replaceAll('./feed-requests',feedsURL).replaceAll('./verified-images',verifiedImagesURL).replaceAll('./classify',classifyURL).replace('import { env } from "cloudflare:workers";','const env = globalThis.__newsEnv;');
+const brandsURL='data:text/javascript;base64,'+Buffer.from(compile(fs.readFileSync('lib/verified-brands.ts','utf8'))).toString('base64');
+const source=fs.readFileSync('lib/news.ts','utf8').replaceAll('./verified-brands',brandsURL).replaceAll('./feed-requests',feedsURL).replaceAll('./verified-images',verifiedImagesURL).replaceAll('./classify',classifyURL).replace('import { env } from "cloudflare:workers";','const env = globalThis.__newsEnv;');
 const js=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
 const mod=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
 const collectFresh=async()=>{for(const key of objects.keys())if(key.startsWith('collection-attempts/'))objects.delete(key);return mod.collect()};
@@ -79,3 +80,10 @@ assert.equal(maxActive,1);assert.deepEqual(pauses,[2000,2000]);assert.equal(seri
 console.log('PASS: serialized 2s pacing, six searches even across holidays, stop on 429/503, one attempt per business window');
 
 assert.equal(mod.collectionWindow(Date.parse('2026-10-29T22:40:00Z')).end,Date.parse('2026-10-29T22:40:00Z'));console.log('PASS: exact 07:40 KST cutoff, before/after cutoff, weekdays and holiday ranges');
+
+Date.now=()=>Date.parse('2026-10-29T00:15:00Z');
+globalThis.fetch=async url=>new Response(new URL(url).searchParams.get('q').startsWith('(ACE OR "한국투자신탁운용")')?fixture.replace('ACE ETF 신규 출시 &amp; 투자 전략','일반 ETF의 해외 레버리지 편입 논란').replace('test123','ace-body-evidence'):'<rss><channel></channel></rss>');
+await collectFresh();
+assert.deepEqual((await mod.getNews()).articles.find(a=>a.title==='일반 ETF의 해외 레버리지 편입 논란').brands,['ACE']);
+Date.now=realNow;
+console.log('PASS: ACE search match classifies a title without the brand, keeping the six-query budget');

@@ -9,4 +9,7 @@ export function issueKeywords(a:Pick<Article,'title'|'category'> & {brands?:stri
  return {subject,event,label:subject+' · '+event};
 }
 
-export function isAceStory(a:Pick<Article,'title'> & {brands?:string[]}){return !!a.brands?.some(b=>b.toUpperCase()==='ACE')||/\bACE\b/.test(a.title)||/한국투자(?:신탁)?운용/.test(a.title)&&/ETF|상장지수펀드/i.test(a.title)}
+export function isAceStory(a:Pick<Article,'title'> & Partial<Pick<Article,'brands'|'summary'|'summaryKind'>>){
+ const evidence=a.title+' '+(a.summaryKind==='summary'?a.summary||'':'');
+ return !!a.brands?.some(b=>b.toUpperCase()==='ACE')||/\bACE\b/.test(evidence)||/한국투자(?:신탁)?운용/.test(evidence)&&/ETF|상장지수펀드/i.test(evidence);
+}
