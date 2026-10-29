@@ -1,0 +1,7 @@
+function publicUrl(raw:string,base?:string){try{const u=new URL(raw,base);if(u.protocol!=='https:'||u.username||u.password||u.port||!u.hostname.includes('.')||/^\d+\.\d+\.\d+\.\d+$/.test(u.hostname)||/localhost|\.local$|\.internal$|\.test$/.test(u.hostname))return null;return u.href}catch{return null}}
+export function imageFromHtml(html:string,base:string){
+ for(const tag of html.match(/<meta\b[^>]*>/gi)||[]){const attrs:Record<string,string>={};for(const m of tag.matchAll(/([\w:-]+)\s*=\s*(["'])(.*?)\2/g))attrs[m[1].toLowerCase()]=m[3];if(['og:image','og:image:secure_url','twitter:image','twitter:image:src'].includes(attrs.property||attrs.name)){const url=publicUrl((attrs.content||'').replace(/&amp;/g,'&'),base);if(url)return url}}
+ return undefined;
+}
+// Called only for source URLs already supplied through the authenticated summary writer.
+export async function articleImage(source:string):Promise<string|undefined>{try{let url=publicUrl(source);for(let i=0;url&&i<4;i++){const r=await fetch(url,{redirect:'manual',signal:AbortSignal.timeout(5000)});if(r.status>=300&&r.status<400){url=publicUrl(r.headers.get('location')||'',url);continue}if(!r.ok||!r.headers.get('content-type')?.includes('text/html'))return;const reader=r.body?.getReader();if(!reader)return;let html='',size=0;const decoder=new TextDecoder();while(size<262144){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;html+=decoder.decode(value,{stream:true});if(html.includes('</head>'))break}await reader.cancel();return imageFromHtml(html,url)}}catch{}return undefined}
