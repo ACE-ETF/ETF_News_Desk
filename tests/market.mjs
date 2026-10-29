@@ -26,3 +26,5 @@ assert(isAceStory({title:'ACE 미국S&P500 ETF 출시',brands:[]}));
 assert(isAceStory({title:'한국투자신탁운용, ETF 신규 상장',brands:[]}));
 assert(!isAceStory({title:'한국투자증권 ETF 서비스 출시',brands:[]}));
 assert(!isAceStory({title:'KODEX 미국 ETF 분배금 지급',brands:['KODEX']}));
+
+assert.equal(marketScope({title:'SOL Gains Ground Despite Solana ETF Outflows',marketHint:'overseas',summaryKind:'title_translation',summary:'SOL 가격, 솔라나 ETF 자금 유출에도 상승'}),'overseas');

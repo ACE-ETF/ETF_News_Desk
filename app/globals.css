@@ -19,3 +19,5 @@
 .topKeywords>span{font-weight:700;color:#3f6584;font-size:11px}.topKeywords>div>a{font-weight:700;color:#125d91;border-color:#b8d8f0;background:#e5f2fd;font-size:12px;min-height:36px}.topKeywords>div>a.keywordSelected{background:#006bb6;color:#fff;border-color:#006bb6}.topKeywords>div>a:focus-visible{outline:2px solid #0079c3;outline-offset:2px}@media(max-width:760px){.topKeywords>div{gap:6px}.topKeywords>div>a{font-size:12px;min-height:40px;padding:5px 11px}}
 
 .relatedMore{display:block;border:0;border-radius:5px;background:#e2effa;color:#146594;font-size:11px;padding:7px 10px;margin:5px 0;cursor:pointer;min-height:34px}@media(max-width:760px){.fullSummary{display:none}}
+
+.story{padding-right:18px}.relatedTranslation{display:block;color:#4e6e89;font-size:11px;font-weight:400;line-height:1.65;margin-top:3px;white-space:normal;word-break:keep-all;overflow-wrap:anywhere}@media(max-width:760px){.story{padding-right:12px}.relatedTranslation{font-size:11px}}
