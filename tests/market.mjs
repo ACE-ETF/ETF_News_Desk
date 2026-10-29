@@ -81,3 +81,5 @@ assert.deepEqual(articleBrands({id:'test',title:'일반 ETF의 운용 구조 논
 assert.deepEqual(articleBrands({id:'test',title:'General ETF news',brands:[],summary:'ACE ETF 관련 기사',summaryKind:'title_translation'}),[]);
 assert.deepEqual(articleBrands({id:'647507794034032f9b7a92d9d2d3eb942223855d0fb36fd1c9155c545533fa69',title:'일반 ETF 속에 3배 레버리지…꼼수 운용 논란',brands:[]}),['ACE']);
 console.log('PASS: verified excerpt and summary brand evidence; translations cannot invent brand membership');
+
+assert.equal(marketScope({title:'일반 ETF 속에 3배 레버리지…꼼수 운용 논란',brands:['ACE']}),'domestic');
