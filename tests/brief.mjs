@@ -27,3 +27,11 @@ assert.equal(pair('삼성운용, KODEX 미국S&P500·나스닥100 ETF 분배금 
 assert.equal(pair('KODEX 미국S&P500 ETF 분배금 지급','KODEX 미국나스닥100 ETF 분배금 지급').length,2);
 assert.equal(pair('한화운용, 글로벌HBM반도체 ETF 개인 자금 6000억원 유입','PLUS 글로벌HBM반도체, 개인 순매수 1위').length,1);
 assert(isRoutineStory({title:"Bitcoin ETF Outflows - Could Top 1000x"}));
+
+assert.equal(pair("미래에셋 '배당커버드콜 ETF' 개인 순매수 2조원 돌파",'미래에셋운용 TIGER 배당커버드콜액티브 ETF, 개인 자금 2.4조원 유입').length,1);
+assert.equal(pair("한국투자신탁운용, 'ACE 일라이릴리밸류체인 ETF' 6개월 수익률 1위","한투운용, 'ACE 일라이릴리밸류체인' ETF 헬스케어 패시브 중 수익률 1위").length,1);
+assert.equal(pair('ACE 일라이릴리밸류체인 ETF 6개월 수익률 1위','ACE 일라이릴리밸류체인 ETF 3개월 수익률 1위').length,2);
+assert.equal(pair('ACE 일라이릴리밸류체인 ETF 6개월 수익률 1위','ACE 일라이릴리밸류체인 ETF 6개월 수익률 2위').length,2);
+assert.equal(pair('TIGER 배당커버드콜 ETF 개인 순매수 2조원','TIGER 배당커버드콜 ETF 개인 순매수 3조원').length,2);
+assert.equal(pair('금감원, 퇴직연금 ETF 투자한도·위험등급 동시 표기해야','퇴직연금 ETF 투자한도 100%, 원리금 보장 의미 아닙니다').length,1);
+console.log('PASS: historical Korean product coverage; period, rank and amount guards');

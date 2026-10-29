@@ -93,3 +93,5 @@ pnpm build
 공유 이미지는 `public/social/etf-news-card-ace-v2.png`입니다. ACE ETF 공식 로고 출처: https://www.aceetf.co.kr/static/images/logo_ace_blue_fit.svg (확인일 2026-10-29). 공식 벡터 원본은 `public/brand/ace-etf.svg`에 보관합니다.
 
 공유용 화면에서는 개인 북마크 메뉴와 기사 저장 버튼을 제거했습니다. 날짜별 조회는 유지합니다. `GET /api/news?translations=1`은 현재 수집 구간의 미번역 해외 영어 기사만 반환합니다. 제목 번역은 10개씩 저장하되 전체 대상을 완료합니다.
+
+날짜별로 원본을 누적 보관하되 기본 화면은 최근 영업일의 08시~08시 브리핑만 표시합니다. 날짜를 고르면 해당일 00시~24시(한국 시간) 발행 기사만 표시합니다. 과거 날짜에도 최신 중복 묶기 규칙을 적용하며 원본은 유지합니다.

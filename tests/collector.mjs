@@ -56,3 +56,5 @@ Date.now=()=>Date.parse('2026-12-25T00:00:00Z');assert.equal((await mod.collect(
 Date.now=()=>Date.parse('2026-11-02T00:00:00Z');const seen=[];globalThis.fetch=async url=>{seen.push(url);return new Response('<rss><channel></channel></rss>')};await mod.collect();assert.equal(seen.length,20);assert(seen.some(u=>u.includes('ceid=US%3Aen')));assert(seen.some(u=>u.includes('ceid=KR%3Ako')));assert(seen.every(u=>decodeURIComponent(u).includes('after:')));
 Date.now=realNow;
 console.log('PASS: Monday weekends, Chuseok, Seollal, substitute holidays, year boundary, intermediate dates, holiday skip, extended source range');
+
+const archived=await mod.getNews('2026-10-31');assert.equal(archived.window.start,'2026-10-30T15:00:00.000Z');assert.equal(archived.window.end,'2026-10-31T15:00:00.000Z');

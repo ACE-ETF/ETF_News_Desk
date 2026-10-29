@@ -6,7 +6,7 @@ export const marketLabels:Record<MarketScope,string>={domestic:'국내 상장',o
 export function marketScope(article:Pick<Article,'title'|'summary'|'summaryKind'|'marketHint'>):MarketScope{
  const text=article.title+' '+(article.summaryKind==='title_translation'?'':article.summary||'');
  const domesticFund=/\b(?:ACE|TIGER|KODEX|RISE|HANARO|KIWOOM|TIMEFOLIO|KoAct|1Q)\b/.test(text)||/\b(?:SOL|PLUS)\s*[가-힣]/.test(text)||/국내\s*상장|한국거래소|KRX|코스피\s*200|코스닥\s*150|코리아배당|고배당주Plus/.test(text);
- const overseasFund=/\b(?:IBIT|FBTC|GBTC|ETHA|ETHE|QQQ|QQQM|SPY|SPLG|VOO|VTI|SCHD|SCHG|JEPI|JEPQ|TSLL|TSLT|NVDL|NVDU|SPXL|SOXL|SOXS|TQQQ|SQQQ)\b/i.test(text)||/(?:미국|유럽|일본|홍콩|중국|런던|뉴욕).{0,12}(?:증시.{0,6})?상장|해외\s*상장|미국\s*(?:증시에|시장에)\s*상장/.test(text);
+ const overseasFund=/\b(?:IBIT|FBTC|GBTC|ETHA|ETHE|QQQ|QQQM|SPY|SPLG|VOO|VTI|SCHD|SCHG|JEPI|JEPQ|TSLL|TSLT|NVDL|NVDU|SPXL|SOXL|SOXS|TQQQ|SQQQ)\b/i.test(text)||/(?:미국|유럽|일본|홍콩|중국|런던|뉴욕|美).{0,12}(?:증시.{0,6})?상장|해외\s*상장|미국\s*(?:증시에|시장에)\s*상장/.test(text);
  if(domesticFund&&overseasFund)return 'mixed';
  if(domesticFund)return 'domestic';
  if(overseasFund)return 'overseas';
