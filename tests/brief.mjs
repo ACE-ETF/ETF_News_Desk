@@ -50,3 +50,7 @@ const cryptoBrief=briefStories([make(301,'SEC approves new Bitcoin ETF rules','�
 assert.equal(cryptoBrief.filter(s=>/Bitcoin|Ethereum/.test(s.a.title)).length,1);
 assert(cryptoBrief.some(s=>/bond/.test(s.a.title)));assert(cryptoBrief.some(s=>/gold/.test(s.a.title)));
 console.log('PASS: one crypto issue in the core briefing, other asset stories retained');
+
+const {isCryptoStory}=await import(eventsURL);
+for(const title of ['Hyperliquid ETF Debuts on Nasdaq','Zcash ETF inflows','Dogecoin ETF launch','IBIT inflows','하이퍼리퀴드 ETF 상장'])assert(isCryptoStory({title}),title);
+assert(!isCryptoStory({title:'SOL AI반도체 ETF'}));
