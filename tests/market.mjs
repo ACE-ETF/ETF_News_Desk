@@ -19,3 +19,10 @@ console.log('PASS: listing venue vs underlying assets, foreign ticker, Korean is
 assert.equal(marketScope({title:'Vanguard launches a new bond ETF',marketHint:'overseas'}),'overseas');
 assert.equal(marketScope({title:'New ETF attracts assets',marketHint:'overseas'}),'overseas');
 assert.equal(marketScope({title:'KODEX 미국S&P500 ETF',marketHint:'overseas'}),'domestic');
+
+const keywordJS=ts.transpileModule(fs.readFileSync('lib/keywords.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;
+const {isAceStory}=await import('data:text/javascript;base64,'+Buffer.from(keywordJS).toString('base64'));
+assert(isAceStory({title:'ACE 미국S&P500 ETF 출시',brands:[]}));
+assert(isAceStory({title:'한국투자신탁운용, ETF 신규 상장',brands:[]}));
+assert(!isAceStory({title:'한국투자증권 ETF 서비스 출시',brands:[]}));
+assert(!isAceStory({title:'KODEX 미국 ETF 분배금 지급',brands:['KODEX']}));
