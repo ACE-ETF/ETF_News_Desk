@@ -1,3 +1,4 @@
+import {serialFeeds} from './feed-requests';
 import {verifiedArticleImage} from './verified-images';
 import { env } from "cloudflare:workers";
 import {category,collectionWindow,calendarDates,isBusinessDay} from "./classify";
@@ -17,22 +18,24 @@ export function collectionQueries(window:{start:number;end:number}){
   {q:'(ACE OR TIGER OR KODEX OR RISE OR SOL OR PLUS) ETF',hl:'ko',gl:'KR',ceid:'KR:ko'},
   // Separate asset searches prevent high-volume crypto publishers from filling every RSS page.
   ...[
-   'ETF (equity OR stock OR sector OR dividend OR thematic) (Vanguard OR iShares OR SPDR OR Invesco OR Schwab OR Nasdaq)',
-   'ETF (bond OR Treasury OR credit OR "fixed income" OR municipal)',
-   'ETF (gold OR silver OR commodity OR commodities OR oil)',
-   'ETF (launch OR fees OR "expense ratio" OR regulation OR closure OR "active ETF")'
+   'ETF (equity OR sector OR dividend OR launch OR fees OR regulation) (Vanguard OR iShares OR SPDR OR Invesco OR Schwab OR Nasdaq)',
+   'ETF (bond OR Treasury OR credit OR "fixed income" OR gold OR commodity)'
   ].map(q=>({q:q+' -bitcoin -ethereum -crypto -cryptocurrency -solana -XRP -dogecoin -blockchain',hl:'en-US',gl:'US',ceid:'US:en'})),
   {q:'ETF (bitcoin OR ethereum OR crypto) (approval OR regulation OR launch OR inflows OR outflows)',hl:'en-US',gl:'US',ceid:'US:en'}
  ];
- const periods=window.end-window.start===86400000?[' when:2d']:calendarDates(window.start,window.end).map(day=>{const start=Date.parse(day+'T00:00:00+09:00');return ' after:'+new Date(start-86400000).toISOString().slice(0,10)+' before:'+new Date(start+2*86400000).toISOString().slice(0,10)});
- return periods.flatMap(period=>bases.map(base=>({...base,q:base.q+period})));
+ const period=window.end-window.start===86400000?' when:2d':' after:'+new Date(window.start-86400000).toISOString().slice(0,10)+' before:'+new Date(window.end+86400000).toISOString().slice(0,10);
+ // One wide search window also covers weekends/holidays without multiplying requests per day.
+ return bases.map(base=>({...base,q:base.q+period}));
 }
 export async function collect(){
  const now=Date.now();if(!isBusinessDay(now))return {skipped:true,reason:'주말·한국 공휴일에는 갱신하지 않고 다음 영업일에 합산합니다.'};
  const window=collectionWindow(now),queries=collectionQueries(window);
- const results=await Promise.allSettled(queries.map(async query=>{
+ const attemptKey='collection-attempts/'+new Date(window.end).toISOString()+'.json';
+ const claimed=await bucket().put(attemptKey,JSON.stringify({attemptedAt:new Date(now).toISOString()}),{onlyIf:{etagDoesNotMatch:'*'},httpMetadata:{contentType:'application/json'}});
+ if(!claimed)return {skipped:true,reason:'이번 영업일 수집을 이미 시도했습니다. 제한 방지를 위해 재요청하지 않습니다.'};
+ const results=await serialFeeds(queries,async query=>{
   const u='https://news.google.com/rss/search?'+new URLSearchParams(query);
-  const r=await fetch(u,{signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error('뉴스 피드 응답 '+r.status);
+  const r=await fetch(u,{signal:AbortSignal.timeout(20000)});if(!r.ok){await r.body?.cancel();throw Object.assign(new Error('뉴스 피드 응답 '+r.status),{status:r.status})}
   const xml=await r.text();if(!xml.includes('<rss'))throw new Error('유효하지 않은 뉴스 피드');
   return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].flatMap(m=>{
    const x=m[1],source=tag(x,'source'),raw=tag(x,'title'),title=raw.endsWith(' - '+source)?raw.slice(0,-source.length-3):raw;
@@ -41,7 +44,7 @@ export async function collect(){
    const published=new Date(timestamp).toISOString();
    return [{title,source,published,url,date:kdate(timestamp),category:category(title),brands:['ACE','TIGER','KODEX','RISE','SOL','PLUS','HANARO','KIWOOM','TIMEFOLIO','KoAct','1Q'].filter(b=>new RegExp('\\b'+b+'\\b','i').test(title)),language:query.gl==='US'?'en' as const:'ko' as const,...(query.gl==='US'?{marketHint:'overseas' as const}:{})}];
   });
- }));
+ });
  const errors=results.flatMap((r,i)=>r.status==='rejected'?[queries[i].q+': '+String(r.reason)]:[]);
  if(errors.length===queries.length)throw new Error('뉴스 수집 실패: '+errors.join('; '));
  const map=new Map<string,Article>();for(const r of results)if(r.status==='fulfilled')for(const a of r.value){
