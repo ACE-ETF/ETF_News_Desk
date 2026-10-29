@@ -37,6 +37,7 @@ globalThis.fetch=async()=>{throw new Error('offline')};await assert.rejects(mod.
 assert.equal(mod.kdate(Date.parse('2026-01-01T16:00:00Z')),'2026-01-02');
 const rankingJS=compile(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL));
 const ranking=await import('data:text/javascript;base64,'+Buffer.from(rankingJS).toString('base64'));assert.equal(ranking.importance({title:'ETF 특별배당 지급',category:'배당·분배'}).level,'중');assert.equal(ranking.importance({title:'ETF 분배금 지급 안내',category:'배당·분배'}).level,'일반');assert.equal(ranking.importance({title:'ETF 분배금 지급 중단',category:'배당·분배'}).level,'상');assert.equal(ranking.importance({title:'ETF 특별배당 분배금 지급',category:'배당·분배'}).score,43);assert(!ranking.importance({title:'ETF 플랫폼 출시',category:'상품·전략'}).reasons.includes('신상품·신규 상장'));
+assert.equal(mod.category('Vanguard launches a new bond ETF'),'신규 상장');assert.equal(mod.category('SEC approves ETF trading rules'),'제도·시장');assert.equal(mod.category('ETF inflows hit a record'),'수급·성과');assert(ranking.importance({title:'SEC approves new ETF rules',category:'제도·시장'}).score>=60);assert(ranking.importance({title:'Vanguard launches a bond ETF',category:'신규 상장'}).score>=35);
 console.log('PASS: morning 24h window, launch classification regressions, special dividend priority, RSS parsing, brand/category, duplicate removal, preservation on failure, KST dates');
 
 const expectWindow=(now,start,end)=>{const w=mod.collectionWindow(Date.parse(now+'+09:00'));assert.equal(new Date(w.start).toISOString(),new Date(start+'+09:00').toISOString());assert.equal(new Date(w.end).toISOString(),new Date(end+'+09:00').toISOString())};
@@ -52,6 +53,6 @@ objects.set('status.json',{body:JSON.stringify({windowStart:'2026-10-29T23:00:00
 assert((await mod.getNews()).articles.some(a=>a.id==='middle-weekend'));
 Date.now=()=>Date.parse('2026-11-01T00:00:00Z');assert.equal((await mod.collect()).skipped,true);
 Date.now=()=>Date.parse('2026-12-25T00:00:00Z');assert.equal((await mod.collect()).skipped,true);
-Date.now=()=>Date.parse('2026-11-02T00:00:00Z');const seen=[];globalThis.fetch=async url=>{seen.push(url);return new Response('<rss><channel></channel></rss>')};await mod.collect();assert.equal(seen.length,12);assert(seen.every(u=>decodeURIComponent(u).includes('after:')));
+Date.now=()=>Date.parse('2026-11-02T00:00:00Z');const seen=[];globalThis.fetch=async url=>{seen.push(url);return new Response('<rss><channel></channel></rss>')};await mod.collect();assert.equal(seen.length,20);assert(seen.some(u=>u.includes('ceid=US%3Aen')));assert(seen.some(u=>u.includes('ceid=KR%3Ako')));assert(seen.every(u=>decodeURIComponent(u).includes('after:')));
 Date.now=realNow;
 console.log('PASS: Monday weekends, Chuseok, Seollal, substitute holidays, year boundary, intermediate dates, holiday skip, extended source range');

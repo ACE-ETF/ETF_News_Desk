@@ -1,0 +1,21 @@
+import ts from 'typescript';import fs from 'node:fs';import assert from 'node:assert/strict';
+const js=ts.transpileModule(fs.readFileSync('lib/market.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.ESNext}}).outputText;
+const {marketScope}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const check=(title,expected,summary)=>assert.equal(marketScope({title,summary}),expected,title);
+check('ACE 미국S&P500 ETF 신규 상장','domestic');
+check('KODEX 미국나스닥100 ETF 분배금 지급','domestic');
+check('TIGER 일본반도체 ETF 순자산 증가','domestic');
+check('SCHD만 상승…나스닥 ETF 약세','overseas');
+check('블랙록 비트코인 ETF 순유입 확대','overseas');
+check('SK하이닉스 레버리지 ETF 청산','overseas','미국에 상장된 SK하이닉스 레버리지 ETF가 청산한다.');
+check('미국에 상장된 한국 반도체 ETF','overseas');
+check('ACE 미국S&P500과 SPY ETF 비교','mixed');
+check('금감원 ETF 이벤트 규제','domestic');
+check('증권업계 교육세, ETF 투자자 부담','domestic');
+check('새로운 액티브 ETF 전략 등장','unknown');
+check('XRP ETF 자산 감소','unknown');
+console.log('PASS: listing venue vs underlying assets, foreign ticker, Korean issuer, mixed and unknown evidence');
+
+assert.equal(marketScope({title:'Vanguard launches a new bond ETF',marketHint:'overseas'}),'overseas');
+assert.equal(marketScope({title:'New ETF attracts assets',marketHint:'overseas'}),'overseas');
+assert.equal(marketScope({title:'KODEX 미국S&P500 ETF',marketHint:'overseas'}),'domestic');

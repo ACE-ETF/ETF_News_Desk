@@ -1,5 +1,6 @@
 import {KR_HOLIDAYS} from "./holidays";
 export function isNewListing(t:string){
+ if(/\b(?:ETF|exchange.traded fund)s?\b/i.test(t)&&(/\b(?:launch(?:es|ed|ing)?|debut(?:s|ed)?|introduc(?:e|es|ed|ing))\b.{0,65}\bETFs?\b/i.test(t)||/\bETFs?\b.{0,45}\b(?:launch(?:es|ed|ing)?|debut(?:s|ed)?)\b/i.test(t)))return true;
  if(/이벤트|경품|증정|캠페인|프로모션|세미나|플랫폼|홈페이지|웹사이트|서비스|앱\s|애플리케이션|보고서|리포트|계좌|혜택|콘텐츠|기능|가이드|브랜드\s*출시/.test(t))return false;
  if(/(?:담은|보유|편입|투자한|투자하는).*(?:기업공개|IPO|신규\s*상장)/i.test(t)&&!/(?:ETF|상장지수펀드).{0,8}출시/.test(t))return false;
  if(/상장.{0,8}(?:주년|기념|이후|만에|개월)|신규\s*상장.*ETF.*(?:수익률|순자산|순매수|성과)/.test(t))return false;
@@ -8,6 +9,10 @@ export function isNewListing(t:string){
  return new RegExp(fund+'[^.!?…]{0,24}'+action,'i').test(t)||new RegExp(action+'[^.!?…]{0,35}'+fund,'i').test(t)||(/\b(?:ACE|TIGER|KODEX|RISE|SOL|PLUS|HANARO|KIWOOM|TIMEFOLIO|KoAct)\b/i.test(t)&&/(?:ETF|펀드|[‘'“"][^’'”"]+[’'”"])/.test(t)&&/(?:신규\s*상장|신규\s*출시)/.test(t));
 }
 export function category(t:string){
+ if(/\b(?:SEC|regulat\w*|liquidat\w*|closure|delist\w*|trading halt)\b/i.test(t))return '제도·시장';
+ if(/\b(?:distribution|dividend|payout)s?\b/i.test(t))return '배당·분배';
+ if(/[a-z]/i.test(t)&&!/ETF.*[가-힣]|[가-힣].*ETF/.test(t)&&isNewListing(t))return '신규 상장';
+ if(/\b(?:inflows?|outflows?|assets under management|AUM|net assets|returns?|performance)\b/i.test(t))return '수급·성과';
  if(/상장폐지|거래정지|청산|금융당국|금감원|금융위|제도|규제|과세|세제|법안|규정/.test(t))return '제도·시장';
  if(/특별\s*배당|특별\s*분배|분배금|분배율|분배락|배당락|분배\s*정책|배당\s*정책|중간\s*배당/.test(t))return '배당·분배';
  if(/이벤트|경품|증정|프로모션|캠페인|세미나|마케팅|수상|표창/.test(t))return '마케팅';
