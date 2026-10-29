@@ -23,7 +23,9 @@ export function category(t:string){
 const DAY=86400000;
 export function isBusinessDay(t:number){const d=new Date(t+9*3600000);const key=d.toISOString().slice(0,10);const year=d.getUTCFullYear();if(year<2025||year>2036)throw new Error('공휴일 달력 갱신이 필요합니다.');return ![0,6].includes(d.getUTCDay())&&!KR_HOLIDAYS.has(key)}
 export function collectionWindow(now=Date.now()){
- let end=Math.floor((now+3600000)/DAY)*DAY-3600000;
+ // 07:40 KST is 22:40 UTC on the previous calendar day.
+ const cutoffOffset=80*60000;
+ let end=Math.floor((now+cutoffOffset)/DAY)*DAY-cutoffOffset;
  while(!isBusinessDay(end))end-=DAY;
  let start=end-DAY;while(!isBusinessDay(start))start-=DAY;
  return {start,end};

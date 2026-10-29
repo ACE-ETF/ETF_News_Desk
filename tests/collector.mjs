@@ -5,7 +5,7 @@ const realNow=Date.now;Date.now=()=>Date.parse('2026-10-29T00:15:00Z');
 const objects=new Map();let revision=0;
 const bucket={get:async key=>objects.has(key)?{etag:objects.get(key).etag,json:async()=>JSON.parse(objects.get(key).body)}:null,put:async(key,body,options)=>{const old=objects.get(key);if(options?.onlyIf?.etagMatches&&old?.etag!==options.onlyIf.etagMatches)return null;if(options?.onlyIf?.etagDoesNotMatch==='*'&&old)return null;objects.set(key,{body,etag:String(++revision)});return {}},list:async()=>({objects:[...objects.keys()].filter(k=>k.startsWith('days/')).map(key=>({key})),truncated:false})};
 globalThis.__newsEnv={BUCKET:bucket};
-const windowEnd=Math.floor((Date.now()+3600000)/86400000)*86400000-3600000;
+const windowEnd=Math.floor((Date.now()+4800000)/86400000)*86400000-4800000;
 const pub=new Date(windowEnd-3600000).toUTCString();
 const fixture=`<rss><channel><item><title><![CDATA[ACE ETF 신규 출시 &amp; 투자 전략 - 테스트경제]]></title><link>https://news.google.com/rss/articles/test123</link><pubDate>${pub}</pubDate><source url="https://example.com">테스트경제</source></item></channel></rss>`;
 globalThis.fetch=async()=>new Response(fixture);
@@ -30,8 +30,8 @@ assert.equal(mod.category('ETF 담은 스페이스X 신규 상장'),'상품·전
 assert.equal(mod.category('TIGER 반도체 ETF 신규 상장'),'신규 상장');
 assert.equal(mod.category('ACE ETF 특별배당 발표'),'배당·분배');
 assert.equal(mod.category('ETF 분배금 삭감'),'배당·분배');
-assert.equal(mod.collectionWindow(Date.parse('2026-10-29T23:01:00Z')).end,Date.parse('2026-10-29T23:00:00Z'));
-assert.equal(mod.collectionWindow(Date.parse('2026-10-29T22:59:00Z')).end,Date.parse('2026-10-28T23:00:00Z'));
+assert.equal(mod.collectionWindow(Date.parse('2026-10-29T22:41:00Z')).end,Date.parse('2026-10-29T22:40:00Z'));
+assert.equal(mod.collectionWindow(Date.parse('2026-10-29T22:39:00Z')).end,Date.parse('2026-10-28T22:40:00Z'));
 const oldFixture=fixture.replace(pub,new Date(windowEnd-86400001).toUTCString());globalThis.fetch=async()=>new Response(oldFixture);assert.equal((await collectFresh()).fetched,0);
 globalThis.fetch=async()=>new Response(fixture);
 await collectFresh();assert.equal((await mod.getNews()).articles.length,1);
@@ -44,12 +44,12 @@ assert.equal(mod.category('Vanguard launches a new bond ETF'),'신규 상장');a
 console.log('PASS: morning 24h window, launch classification regressions, special dividend priority, RSS parsing, brand/category, duplicate removal, preservation on failure, KST dates');
 
 const expectWindow=(now,start,end)=>{const w=mod.collectionWindow(Date.parse(now+'+09:00'));assert.equal(new Date(w.start).toISOString(),new Date(start+'+09:00').toISOString());assert.equal(new Date(w.end).toISOString(),new Date(end+'+09:00').toISOString())};
-expectWindow('2026-11-02T08:01:00','2026-10-30T08:00:00','2026-11-02T08:00:00');
-expectWindow('2026-11-03T08:01:00','2026-11-02T08:00:00','2026-11-03T08:00:00');
-expectWindow('2026-09-28T08:01:00','2026-09-23T08:00:00','2026-09-28T08:00:00');
-expectWindow('2027-02-10T08:01:00','2027-02-05T08:00:00','2027-02-10T08:00:00');
-expectWindow('2027-01-04T08:01:00','2026-12-31T08:00:00','2027-01-04T08:00:00');
-expectWindow('2027-05-04T08:01:00','2027-04-30T08:00:00','2027-05-04T08:00:00');
+expectWindow('2026-11-02T07:41:00','2026-10-30T07:40:00','2026-11-02T07:40:00');
+expectWindow('2026-11-03T07:41:00','2026-11-02T07:40:00','2026-11-03T07:40:00');
+expectWindow('2026-09-28T07:41:00','2026-09-23T07:40:00','2026-09-28T07:40:00');
+expectWindow('2027-02-10T07:41:00','2027-02-05T07:40:00','2027-02-10T07:40:00');
+expectWindow('2027-01-04T07:41:00','2026-12-31T07:40:00','2027-01-04T07:40:00');
+expectWindow('2027-05-04T07:41:00','2027-04-30T07:40:00','2027-05-04T07:40:00');
 const middle={...result.articles[0],id:'middle-weekend',published:'2026-10-31T03:00:00Z',date:'2026-10-31'};
 objects.set('days/2026-10-31.json',{body:JSON.stringify([middle]),etag:'middle'});
 objects.set('status.json',{body:JSON.stringify({windowStart:'2026-10-29T23:00:00Z',windowEnd:'2026-11-01T23:00:00Z'}),etag:'period'});
@@ -77,3 +77,5 @@ const rawFeedsURL='data:text/javascript;base64,'+Buffer.from(compile(fs.readFile
 let active=0,maxActive=0;const pauses=[];const serial=await serialFeeds([1,2,3],async q=>{active++;maxActive=Math.max(maxActive,active);await Promise.resolve();active--;return q},async ms=>{pauses.push(ms)});
 assert.equal(maxActive,1);assert.deepEqual(pauses,[2000,2000]);assert.equal(serial.length,3);
 console.log('PASS: serialized 2s pacing, six searches even across holidays, stop on 429/503, one attempt per business window');
+
+assert.equal(mod.collectionWindow(Date.parse('2026-10-29T22:40:00Z')).end,Date.parse('2026-10-29T22:40:00Z'));console.log('PASS: exact 07:40 KST cutoff, before/after cutoff, weekdays and holiday ranges');

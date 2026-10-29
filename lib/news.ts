@@ -54,6 +54,6 @@ export async function collect(){
  }
  const days=new Map<string,Article[]>();for(const a of map.values())days.set(a.date,[...(days.get(a.date)||[]),a]);
  for(const [day,items]of days)await saveDay(day,items);
- const status={windowStart:new Date(window.start).toISOString(),windowEnd:new Date(window.end).toISOString(),schedule:'한국 영업일 08:00 KST',updated:new Date().toISOString(),fetched:map.size,errors,source:'Google 뉴스 RSS · 한국어/영어',overseasFetched:[...map.values()].filter(a=>a.marketHint==='overseas').length};
+ const status={windowStart:new Date(window.start).toISOString(),windowEnd:new Date(window.end).toISOString(),schedule:'한국 영업일 07:40 KST',updated:new Date().toISOString(),fetched:map.size,errors,source:'Google 뉴스 RSS · 한국어/영어',overseasFetched:[...map.values()].filter(a=>a.marketHint==='overseas').length};
  await bucket().put('status.json',JSON.stringify(status),{httpMetadata:{contentType:'application/json'}});return status;
 }
