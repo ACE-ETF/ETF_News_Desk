@@ -4,7 +4,7 @@ import {distributionEventKeys} from './distribution-events';
 import {canGroupStories,canJoinRecordMilestone,isCryptoStory} from './story-events';
 import {importance} from './ranking';
 import type {Article} from './news';
-export type Story={a:Article;others:Article[]};
+export type Story={a:Article;others:Article[];relatedKind?:'coverage'};
 export function briefStories(stories:Story[],limit=10){
  const eligible=stories.filter(s=>!sourceDateNote(s.a)&&importance(s.a).score>=20&&s.a.category!=='마케팅');
  const selected:Story[]=[];const counts=new Map<string,number>();

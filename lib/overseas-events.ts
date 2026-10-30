@@ -20,7 +20,7 @@ function money(t:string){
  const small=t.match(/([\d,.]+)\s*만\s*(?:달러|弗)/);if(small){const n=small[1].replace(/,/g,'');return {value:Number(n)*1e4,resolution:10**-(n.split('.')[1]?.length||0)*1e4}}
 }
 export function cryptoFlowTopic(a:Pick<Article,'title'>){
- const t=a.title;if(!/\bETFs?\b|상장지수펀드/i.test(t)||!/inflows?|outflows?|inflo\b|took in|draw|pull|attract|순유입|순유출|자금.{0,6}(?:유입|유출)/i.test(t)||/launch|debut|approv|regulat|lawsuit|delist|liquidat|expense ratio|출시|상장폐지|규제|승인|청산/i.test(t))return;
+ const t=a.title;if(!/\bETFs?\b|상장지수펀드/i.test(t)||!/inflows?|outflows?|inflo\b|took in|draw|pull|attract|\badd(?:s|ed)?\b|\blose\b|\blost\b|순유입|순유출|자금.{0,6}(?:유입|유출)/i.test(t)||/launch|debut|approv|regulat|lawsuit|delist|liquidat|expense ratio|출시|상장폐지|규제|승인|청산/i.test(t))return;
  const btc=/\bbitcoin\b|\bBTC\b|비트코인/i.test(t),eth=/\bethereum\b|\bether\b|\bETH\b|이더리움/i.test(t);
  return btc&&eth?'비트코인·이더리움 ETF 수급 비교':btc?'비트코인 ETF 수급':eth?'이더리움 ETF 수급':undefined;
 }
