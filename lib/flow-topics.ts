@@ -36,7 +36,7 @@ function coverageKey(s:Story){
 }
 function informationScore(a:Article){
  const t=a.title;
- return importance(a).score*100+(a.summaryKind==='summary'?1000:0)+(!/(?:\.\.\.|…|\b(?:inflo|fo|jitte))\s*$/i.test(t)?100:0)+(t.match(/\d[\d,.]*\s*(?:조|억|만|%|million|billion|[MB]\b)/gi)?.length||0)*15+(/연초|올해|일간|주간|월간|\d+일간|\d+개월|daily|weekly|monthly|\d+.day|on\s+Oct/i.test(t)?20:0)+Math.min(t.length,150)/10;
+ return importance(a).score*100+(a.summaryKind==='summary'?1000:0)+(!/(?:\.\.\.|…|\b(?:inflo|fo|jitte))\s*$/i.test(t)?100:0)+(t.match(/\d[\d,.]*\s*(?:조|억|만|%|million|billion|[MB]\b)/gi)?.length||0)*15+(/연초|올해|일간|주간|월간|\d+일간|\d+개월|\d+년|daily|weekly|monthly|\d+.day|on\s+Oct/i.test(t)?20:0)+Math.min(t.length,150)/10;
 }
 // Select one informative representative per comparable coverage area. Remaining
 // articles become source links, never another stack of topic/event cards.

@@ -59,3 +59,5 @@ html[data-theme=dark] .error{background:#35281c;border-color:#755335;color:#f4cd
 @media(max-width:760px){.themePicker{margin-left:0}.themePicker select{min-height:44px;font-size:12px}html[data-theme=dark] header{background:#152233f5}}
 @media(max-width:480px){header .publicBadge{display:none}.themePicker{margin-left:auto}.headerBrand>span{display:none}}
 
+
+.articleMedia{width:108px;flex:0 0 108px}.articleImageCaption{display:block;font-size:10px;line-height:1.6;color:#64748b;margin-top:4px;overflow-wrap:anywhere}.issuerLogo{background:#fff}.issuerLogo img{object-fit:contain;padding:5px}html[data-theme=dark] .articleImageCaption{color:var(--theme-muted)}@media(max-width:760px){.articleMedia{width:76px;grid-column:2;grid-row:1}.articleImageCaption{font-size:10px}.articleMedia .articleThumb{margin:3px 0 0}}
