@@ -1,0 +1,11 @@
+import ts from 'typescript';import fs from 'node:fs';import assert from 'node:assert/strict';
+const js=ts.transpileModule(fs.readFileSync('lib/daily-briefing.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText;
+const {validBriefing}=await import('data:text/javascript;base64,'+Buffer.from(js).toString('base64'));
+const window={start:'2026-10-28T23:00:00.000Z',end:'2026-10-29T23:00:00.000Z'},ids=new Set(['current']);
+const good={windowStart:window.start,windowEnd:window.end,overview:['핵심 흐름','해외 변화'],items:[{title:'수급',text:'누적 순매수 보도',articleIds:['current']}]};
+assert(validBriefing(good,window,ids));assert(!validBriefing({...good,windowEnd:'old'},window,ids));
+assert(!validBriefing({...good,items:[{...good.items[0],articleIds:['unrelated']}]},window,ids));
+assert(!validBriefing({...good,items:[{...good.items[0],articleIds:[]}]},window,ids));
+assert(!validBriefing({...good,overview:['x'.repeat(161),'다른 흐름']},window,ids));
+assert(!validBriefing(null,window,ids));
+console.log('PASS: briefing requires current collection window, linked stored articles, bounded non-empty content');
