@@ -66,9 +66,10 @@ function pensionDisclosure(t:string){return /퇴직연금/.test(t)&&/ETF/.test(t
 export function canGroupStories(a:Article,b:Article){
  const t=a.title,u=b.title,ia=issuer(t),ib=issuer(u),aa=asset(t),ab=asset(u),ta=tickers(t),tb=tickers(u);
  
- const ra=referenceDate(t),rb=referenceDate(u);if(ra&&rb&&ra!==rb)return false;
+ const ra=referenceDate(t),rb=referenceDate(u);
  const gap=Math.abs(Date.parse(a.published)-Date.parse(b.published));if(gap>36*3600000)return false;
  const overseasMatch=sameOverseasEvent(a,b);if(overseasMatch!==undefined)return overseasMatch;
+ if(ra&&rb&&ra!==rb)return false;
  if(ia&&ib&&ia!==ib||aa&&ab&&aa!==ab||ta.length&&tb.length&&ta.join('+')!==tb.join('+'))return false;
  const statementMatch=sameStatementEvent(a,b);if(statementMatch!==undefined)return statementMatch;
  const productMatch=sameProductEvent(a,b);if(productMatch!==undefined)return productMatch;
