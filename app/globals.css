@@ -23,3 +23,38 @@
 .story{padding-right:18px}.relatedTranslation{display:block;color:#4e6e89;font-size:11px;font-weight:400;line-height:1.65;margin-top:3px;white-space:normal;word-break:keep-all;overflow-wrap:anywhere}@media(max-width:760px){.story{padding-right:12px}.relatedTranslation{font-size:11px}}
 
 .dailyBriefing{background:#fff;border:1px solid #cbdff1;border-radius:10px;margin:16px 0 20px;color:#193c59}.dailyBriefing>summary{cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 18px;min-height:60px}.dailyBriefing>summary>span{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px}.dailyBriefing strong{font-size:14px;font-weight:750}.dailyBriefing small{font-size:11px;color:#64748b}.dailyBriefing>summary>svg{color:#3779a8;flex-shrink:0}.dailyBriefing[open]>summary>svg{transform:rotate(180deg)}.dailyBriefing>summary:focus-visible{outline:2px solid #0074bd;outline-offset:3px;border-radius:10px}.dailyBriefingContent{padding:0 18px 18px}.briefingOverview{padding:13px 15px;background:#edf6ff;border-radius:7px;font-size:14px;font-weight:650;line-height:1.85;color:#173e60}.briefingOverview p{margin:0}.dailyBriefingContent ul{padding-left:20px;margin:16px 0 0}.dailyBriefingContent li{padding-left:2px;margin-top:16px}.dailyBriefingContent li::marker{color:#2182bf}.dailyBriefingContent h2{font-size:13px;line-height:1.7;font-weight:750;margin:0 0 5px}.dailyBriefingContent li p{font-size:13px;line-height:1.85;color:#425c72;margin:0;overflow-wrap:anywhere}.briefingLinks{display:flex;flex-direction:column;gap:7px;margin-top:8px}.briefingLinks a{font-size:11px;line-height:1.7;color:#0068ac;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere;min-height:28px}.briefingLinks svg{display:inline;vertical-align:middle;margin-left:4px}@media(max-width:760px){.dailyBriefing>summary{padding:13px 14px}.dailyBriefingContent{padding:0 14px 15px}.briefingOverview{padding:11px 12px;font-size:13px}.dailyBriefing small{font-size:11px}.dailyBriefingContent li p{font-size:13px;line-height:1.9}}
+
+/* Appearance is independent of article data; light colors above stay unchanged. */
+:root{color-scheme:light}
+.themePicker{display:flex;align-items:center;gap:4px;margin-left:8px;color:#386987;flex-shrink:0}.themePicker select{width:77px;min-height:38px;border:1px solid #cbdff1;background:#f5faff;color:#24577c;font-size:12px;padding:0 5px;border-radius:6px;cursor:pointer}
+:root[data-theme=dark]{color-scheme:dark;--theme-bg:#0d1522;--theme-panel:#152233;--theme-soft:#18334c;--theme-border:#2c4057;--theme-text:#edf3fa;--theme-muted:#b4c4d5;--theme-blue:#79caff}
+html[data-theme=dark] body{background:var(--theme-bg);color:var(--theme-text)}
+html[data-theme=dark] :is(aside,header,.story,.dailyBriefing,.filterContent,.search,.showAll,.period details p,.keywordStatus button){background:var(--theme-panel);border-color:var(--theme-border);color:var(--theme-text)}
+html[data-theme=dark] .story{border-color:var(--theme-border)!important}
+html[data-theme=dark] :is(h1,.storyTitle,.dailyBriefingContent h2,.dailyBriefing strong,.logo strong,.search input){color:var(--theme-text)}
+html[data-theme=dark] :is(.logo small,.navLabel,.scope,.scope p,.sideBottom,.sideBottom small,.headerBrand>span,.heading p,.overview,.overview small,.storyMeta,.storyMeta time,.brandNames,.metaDot,.storyTitle svg,.topKeywords>span,.marketGuide,.translationNotice,.filterPanel>summary,.filterContent>label,.filterOptions>label,.filterOptions button,.criteria,.criteria p,.showAll>span,.dailyBriefing small,footer,.empty,.empty h3,.keywordStatus,.feedHeading>span){color:var(--theme-muted)}
+html[data-theme=dark] :is(.heading,.categories,.scope,.sideBottom,.headerBrand>span,.criteria){border-color:var(--theme-border)}
+html[data-theme=dark] :is(.sideNav.active,.period,.holidayBadge,.filterCount,.marketTabs,.viewTabs,.translationNotice,.relatedMore,.storyNumber,.summaryBox,.briefingOverview,.articleThumb,.priority,.empty button,.publicBadge){background:var(--theme-soft);border-color:var(--theme-border)}
+html[data-theme=dark] :is(.period,.period summary,.overview b,.headerBrand,.eyebrow,.category,.storyNumber,.storyDetails>summary,.detailContent>a,.detailContent>a.fallback,.briefingLinks a,.dailyBriefing>summary>svg,.dailyBriefingContent li::marker,.relatedMore,.sideNav.active,.priority,.keywordStatus b,.keywordStatus button,.marked){color:var(--theme-blue)}
+html[data-theme=dark] .period{background:#172c42;color:#d2e9ff}
+html[data-theme=dark] .summaryBox{border-left-color:#3b6688}
+html[data-theme=dark] .summaryBox>span{color:#acc3d7}
+html[data-theme=dark] :is(.summaryBox>p,.fullSummary,.detailContent>.fullSummary,.detailContent>p,.relatedTranslation,.dailyBriefingContent li p){color:#cedae6}
+html[data-theme=dark] .briefingOverview{color:#e7f5ff;background:#1a354d}
+html[data-theme=dark] .detailContent{background:#102031;border-color:var(--theme-border)}
+html[data-theme=dark] .detailContent>p>span{color:var(--theme-muted)}
+html[data-theme=dark] :is(.marketTabs button,.viewTabs button,.categories button,.sideNav){color:var(--theme-muted)}
+html[data-theme=dark] :is(.marketTabs button.active,.viewTabs button.active){background:#25435d;color:#c7eaff;box-shadow:none}
+html[data-theme=dark] .categories button.selected{border-color:var(--theme-blue);color:var(--theme-blue)}
+html[data-theme=dark] .topKeywords>div>a{background:var(--theme-soft);color:#a7ddff;border-color:#345875}
+html[data-theme=dark] :is(.topKeywords>div>a.keywordSelected,.topKeywords>div>a:hover){background:#25577c;color:#e7f5ff;border-color:#79caff}
+html[data-theme=dark] :is(.themePicker,select){color:var(--theme-text)}
+html[data-theme=dark] :is(select,.themePicker select){background:var(--theme-panel);border-color:var(--theme-border);color:var(--theme-text)}
+html[data-theme=dark] input::placeholder{color:#a3b6ca}
+html[data-theme=dark] input[type=checkbox]{accent-color:#79caff}
+html[data-theme=dark] :is(button,a,summary,select):focus-visible{outline-color:var(--theme-blue)}
+html[data-theme=dark] :is(.storyTitle:hover,.briefingLinks a:hover){color:#b4e2ff}
+html[data-theme=dark] .showAll:hover{background:#1d3c56}
+html[data-theme=dark] .error{background:#35281c;border-color:#755335;color:#f4cda6}
+@media(max-width:760px){.themePicker{margin-left:0}.themePicker select{min-height:44px;font-size:12px}html[data-theme=dark] header{background:#152233f5}}
+@media(max-width:480px){header .publicBadge{display:none}.themePicker{margin-left:auto}.headerBrand>span{display:none}}
