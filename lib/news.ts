@@ -25,16 +25,25 @@ export function collectionQueries(window:{start:number;end:number}){
   ].map(q=>({q:q+' -bitcoin -ethereum -crypto -cryptocurrency -solana -XRP -dogecoin -blockchain',hl:'en-US',gl:'US',ceid:'US:en'})),
   {q:'ETF (launch OR fees OR regulation OR "active ETF" OR dividend) -bitcoin -ethereum -crypto -cryptocurrency -solana -XRP -blockchain',hl:'en-US',gl:'US',ceid:'US:en'}
  ];
- const period=window.end-window.start===86400000?' when:2d':' after:'+new Date(window.start-86400000).toISOString().slice(0,10)+' before:'+new Date(window.end+86400000).toISOString().slice(0,10);
+ const period=window.end-window.start===86400000?' when:2d':' after:'+kdate(window.start-86400000)+' before:'+kdate(window.end+86400000);
  // One wide search window also covers weekends/holidays without multiplying requests per day.
  return bases.map(base=>({...base,q:base.q+period}));
 }
-export async function collect(){
+export async function collect(options:{retryFailed?:boolean}={}){
  const now=Date.now();if(!isBusinessDay(now))return {skipped:true,reason:'주말·한국 공휴일에는 갱신하지 않고 다음 영업일에 합산합니다.'};
  const window=collectionWindow(now),queries=collectionQueries(window);
  const attemptKey='collection-attempts/'+new Date(window.end).toISOString()+'.json';
  const claimed=await bucket().put(attemptKey,JSON.stringify({attemptedAt:new Date(now).toISOString()}),{onlyIf:{etagDoesNotMatch:'*'},httpMetadata:{contentType:'application/json'}});
- if(!claimed)return {skipped:true,reason:'이번 영업일 수집을 이미 시도했습니다. 제한 방지를 위해 재요청하지 않습니다.'};
+ if(!claimed){
+  if(!options.retryFailed)return {skipped:true,reason:'이번 영업일 수집을 이미 시도했습니다. 제한 방지를 위해 재요청하지 않습니다.'};
+  const previousObject=await bucket().get('status.json'),previous:any=previousObject?await previousObject.json():null;
+  if(previous?.windowEnd===new Date(window.end).toISOString())return {skipped:true,reason:'이 구간은 이미 저장됐습니다. 추가 수집하지 않습니다.'};
+  const attemptObject=await bucket().get(attemptKey),attempt:any=attemptObject?await attemptObject.json():null;
+  if(!attempt?.attemptedAt||!Number.isFinite(Date.parse(attempt.attemptedAt))||now-Date.parse(attempt.attemptedAt)<180000)return {skipped:true,reason:'기존 요청 처리 여부를 확인 중입니다. 동시 재시도하지 않습니다.'};
+  const retryKey='manual-retry-attempts/'+new Date(window.end).toISOString()+'.json';
+  const retryClaim=await bucket().put(retryKey,JSON.stringify({attemptedAt:new Date(now).toISOString(),reason:'authenticated explicit retry after unsuccessful collection'}),{onlyIf:{etagDoesNotMatch:'*'},httpMetadata:{contentType:'application/json'}});
+  if(!retryClaim)return {skipped:true,reason:'이 구간의 수동 재시도도 이미 실행했습니다. 추가 요청하지 않습니다.'};
+ }
  const results=await serialFeeds(queries,async query=>{
   const u='https://news.google.com/rss/search?'+new URLSearchParams(query);
   const r=await fetch(u,{signal:AbortSignal.timeout(20000)});if(!r.ok){await r.body?.cancel();throw Object.assign(new Error('뉴스 피드 응답 '+r.status),{status:r.status})}

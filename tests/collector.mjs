@@ -87,3 +87,18 @@ await collectFresh();
 assert.deepEqual((await mod.getNews()).articles.find(a=>a.title==='일반 ETF의 해외 레버리지 편입 논란').brands,['ACE']);
 Date.now=realNow;
 console.log('PASS: ACE search match classifies a title without the brand, keeping the six-query budget');
+
+Date.now=()=>Date.parse('2026-11-02T00:15:00Z');
+const retryEnd='2026-11-01T22:40:00.000Z';
+objects.set('collection-attempts/'+retryEnd+'.json',{body:JSON.stringify({attemptedAt:'2026-11-01T22:00:00.000Z'}),etag:'failed-attempt'});
+objects.set('status.json',{body:JSON.stringify({windowStart:'2026-10-28T23:00:00Z',windowEnd:'2026-10-29T23:00:00Z'}),etag:'old-status'});
+let retryFeeds=0;globalThis.fetch=async()=>{retryFeeds++;return new Response(fixture.replace(pub,'Sun, 01 Nov 2026 20:00:00 GMT'))};
+assert.equal((await mod.collect()).skipped,true);assert.equal(retryFeeds,0);
+assert.equal((await mod.collect({retryFailed:true})).fetched,1);assert.equal(retryFeeds,6);
+assert.equal((await mod.collect({retryFailed:true})).skipped,true);assert.equal(retryFeeds,6);
+objects.set('status.json',{body:JSON.stringify({windowEnd:'2026-10-29T23:00:00Z'}),etag:'failure-again'});
+assert.equal((await mod.collect({retryFailed:true})).skipped,true);assert.equal(retryFeeds,6);
+Date.now=realNow;
+console.log('PASS: default daily lock retained; explicit unsuccessful-window retry runs once; saved or repeated manual attempts never refetch');
+const mondayQueries=mod.collectionQueries({start:Date.parse('2026-10-30T07:40:00+09:00'),end:Date.parse('2026-11-02T07:40:00+09:00')});
+assert.equal(mondayQueries.length,6);assert(mondayQueries.every(q=>q.q.includes('after:2026-10-29 before:2026-11-03')),'include Monday early-morning headlines in source search, then filter exact timestamps');
