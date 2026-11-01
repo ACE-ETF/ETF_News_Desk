@@ -74,7 +74,7 @@ export async function collect(options:{retryFailed?:boolean}={}){
 export async function importNaverArticles(items:NaverImportItem[],window:{start:number;end:number}){
  const map=new Map<string,Article>();
  for(const item of items){
-  const parsed=new URL(item.url),url=parsed.origin+parsed.pathname;
+  const parsed=new URL(item.url),url=parsed.origin+parsed.pathname+(parsed.hostname==='n.news.naver.com'?'':parsed.search);
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(url));
   const id=Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
   const a:Article={id,title:item.title.trim(),url,source:item.source.trim(),published:new Date(item.published).toISOString(),date:kdate(Date.parse(item.published)),category:category(item.title),brands:[],language:'ko'};
@@ -82,7 +82,7 @@ export async function importNaverArticles(items:NaverImportItem[],window:{start:
  }
  const days=new Map<string,Article[]>();for(const a of map.values())days.set(a.date,[...(days.get(a.date)||[]),a]);
  for(const [day,articles] of days)await saveDay(day,articles);
- const status={windowStart:new Date(window.start).toISOString(),windowEnd:new Date(window.end).toISOString(),schedule:'한국 영업일 07:40 KST',updated:new Date().toISOString(),fetched:map.size,errors:['Google 뉴스 연결 실패 · 네이버 확인 기사 보완'],source:'네이버 뉴스 · 원문 확인 보완',partial:true,coverageNote:'구글 뉴스 연결 지연으로 네이버에서 확인한 일부 기사만 보완했습니다.'};
+ const status={windowStart:new Date(window.start).toISOString(),windowEnd:new Date(window.end).toISOString(),schedule:'한국 영업일 07:40 KST',updated:new Date().toISOString(),fetched:(await Promise.all(calendarDates(window.start,window.end).map(readDay))).flat().filter(a=>Date.parse(a.published)>=window.start&&Date.parse(a.published)<window.end).length,errors:['Google 뉴스 연결 실패 · 네이버 확인 기사 보완'],source:'네이버 뉴스 검색 · 언론사 원문 확인 보완',partial:true,coverageNote:'구글 뉴스 연결 지연으로 네이버에서 확인한 일부 기사만 보완했습니다.'};
  await bucket().put('status.json',JSON.stringify(status),{httpMetadata:{contentType:'application/json'}});
  return {saved:map.size,partial:true,window:{start:status.windowStart,end:status.windowEnd},items:[...map.values()].map(({id,date,title,url})=>({id,date,title,url}))};
 }
