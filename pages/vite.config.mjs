@@ -8,5 +8,5 @@ export default defineConfig({
  plugins:[react()],
  resolve:{alias:{react:dep('react'),'react-dom':dep('react-dom'),'lucide-react':dep('lucide-react')}},
  css:{postcss:{plugins:[]}},
- build:{outDir:'../dist-pages',emptyOutDir:true}
+ build:{rollupOptions:{input:{main:fileURLToPath(new URL('./index.html',import.meta.url)),rss:fileURLToPath(new URL('./rss.html',import.meta.url))}},outDir:'../dist-pages',emptyOutDir:true}
 });
