@@ -173,3 +173,9 @@ console.log('PASS: generic Korean Treasury AUM aliases resolve from unique nearb
 assert.equal(compressFlowTopics(groupStories([bondArticles[0],make(1030,'삼성운용 KODEX 미국10년국채 ETF 순자산 2천억원','수급·성과').a])).length,1,'snapshot title can join an unambiguous adjacent milestone even if the action word is omitted');
 
 for(const title of ['KODEX 미국10년국채액티브(H) ETF 순자산 2000억 달러 돌파','KODEX 미국10년국채액티브(H) ETF 순자산 2000억원 돌파 목표','KODEX 미국10년국채액티브(H) ETF 순자산 2000억원 돌파…다른 상품과 비교'])assert.equal(groupStories([bondArticles[0],make(1040,title,'수급·성과').a]).length,2,'currency, forward targets and distinct analysis must not be inferred as the same event');
+
+const verifiedBond={...bondArticles[0],summary:'삼성운용은 KODEX 미국10년국채액티브(H) 순자산이 2041억원이라고 밝혔다.',summaryKind:'summary'};
+const preciseBond=make(1050,'삼성운용 美 10년물 국채 ETF, 순자산 2041억원','수급·성과').a;
+assert.equal(compressFlowTopics(groupStories([verifiedBond,preciseBond])).length,1,'verified body explicitly connects milestone threshold and precise AUM');
+assert.equal(compressFlowTopics(groupStories([bondArticles[0],preciseBond])).length,2,'no numeric approximation without verified evidence');
+assert.equal(compressFlowTopics(groupStories([{...verifiedBond,summaryKind:'title_translation'},preciseBond])).length,2,'a title translation is not body evidence for a new amount');
