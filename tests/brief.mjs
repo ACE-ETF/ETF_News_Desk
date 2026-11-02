@@ -1,6 +1,7 @@
 import fs from 'node:fs';import ts from 'typescript';import assert from 'node:assert/strict';
 const url=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64');
-const insightURL=url(fs.readFileSync('lib/insights.ts','utf8'));const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL).replaceAll('./insights',insightURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const overseasURL=url(fs.readFileSync('lib/overseas-events.ts','utf8'));const statementURL=url(fs.readFileSync('lib/statement-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8').replaceAll('./statement-events',statementURL).replaceAll('./overseas-events',overseasURL));const {briefStories,groupStories}=await import(url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./insights',insightURL).replaceAll('./ranking',rankURL).replaceAll('./overseas-events',overseasURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL)));
+const bondMilestonesURL=url(fs.readFileSync('lib/bond-milestones.ts','utf8'));
+const insightURL=url(fs.readFileSync('lib/insights.ts','utf8'));const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL).replaceAll('./insights',insightURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const overseasURL=url(fs.readFileSync('lib/overseas-events.ts','utf8'));const statementURL=url(fs.readFileSync('lib/statement-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8').replaceAll('./statement-events',statementURL).replaceAll('./overseas-events',overseasURL));const {briefStories,groupStories}=await import(url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./bond-milestones',bondMilestonesURL).replaceAll('./insights',insightURL).replaceAll('./ranking',rankURL).replaceAll('./overseas-events',overseasURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL)));
 const make=(i,title,category)=>({a:{id:String(i),title,category,published:'2026-10-29T00:00:00Z',source:'검증',url:'https://example.com/'+i,brands:[],date:'2026-10-29'},others:[]});
 const stories=[...Array.from({length:12},(_,i)=>make(i,'ETF 순자산 '+(i+1)+'조원 돌파','수급·성과')),...Array.from({length:5},(_,i)=>make(20+i,'운용사 '+i+' ETF 총보수 인하','상품·전략')),make(30,'ETF 특별배당 지급','배당·분배'),make(31,'ETF 신규 상장','신규 상장'),make(32,'ETF 거래정지 안내','제도·시장'),make(33,'ETF 분배금 지급 안내','배당·분배'),make(34,'ETF 경품 이벤트','마케팅')].sort((a,b)=>compareImportance(a.a,b.a));
 const selected=briefStories(stories);assert.equal(selected.length,10);assert(selected.some(s=>s.a.category==='제도·시장'));assert(selected.filter(s=>s.a.category==='수급·성과').length<=4);assert(!selected.some(s=>['33','34'].includes(s.a.id)));assert.equal(stories.length,22);
@@ -132,7 +133,7 @@ assert.equal(pair('Bitcoin ETF inflows on October 28 hit $137.3M','비트코인 
 const ambiguousFlow=[make(801,'Bitcoin ETFs attract $286M','수급·성과').a,make(802,'Bitcoin ETFs see $286M daily inflows','수급·성과').a,make(803,'Bitcoin ETFs see $286M inflows over two days','수급·성과').a];
 assert.equal(groupStories(ambiguousFlow).length,3,'unknown horizon cannot bridge daily and two-day totals');
 const topicMarketURL=url(fs.readFileSync('lib/market.ts','utf8').replaceAll('./insights',insightURL));
-const topicsURL=url(fs.readFileSync('lib/flow-topics.ts','utf8').replaceAll('./overseas-events',overseasURL).replaceAll('./market',topicMarketURL).replaceAll('./ranking',rankURL).replaceAll('./insights',insightURL));
+const topicsURL=url(fs.readFileSync('lib/flow-topics.ts','utf8').replaceAll('./bond-milestones',bondMilestonesURL).replaceAll('./overseas-events',overseasURL).replaceAll('./market',topicMarketURL).replaceAll('./ranking',rankURL).replaceAll('./insights',insightURL));
 const {compressFlowTopics}=await import(topicsURL);
 const topicEvents=groupStories([make(810,'Bitcoin ETFs lose $255m over 30 days despite BlackRock inflows','수급·성과').a,make(811,'U.S. Spot Bitcoin ETFs See $292 Million in 30-Day Net Outflows','수급·성과').a,make(812,'美 비트코인(BTC) 현물 ETF, 30일간 2억9200만달러 순유출','수급·성과').a,make(813,'Bitcoin ETF Inflows Return as IBIT Trading Volume Shrinks','수급·성과').a,make(814,'SEC approves Bitcoin ETF rules','제도·시장').a].map(a=>({...a,marketHint:'overseas'})));
 const topicDisplay=compressFlowTopics(topicEvents);assert.equal(topicDisplay.length,2);assert.equal(topicDisplay[0].others.length,3);assert.equal(topicDisplay[0].relatedKind,'coverage');assert.equal(topicDisplay[1].a.id,'814');
@@ -153,3 +154,22 @@ const selectedCoverage=compressedPair('SOL 미국배당다우존스 ETF 수익�
 assert.equal(selectedCoverage[0].a.id,'902','prefer a specific amount and period');assert.equal(selectedCoverage[0].others.length,1);assert(!('topicEvents' in selectedCoverage[0]),'no nested collection of event cards');
 console.log('PASS: representative selection across launch, fees, payouts, performance, strategy and campaigns; product and risk guards; source links retained without folder cards');
 assert.equal(pair('Bitcoin ETFs add $137M, pushing October back into the green','U.S. Bitcoin spot ETFs recorded $137.3M in net inflows on October 28').length,1,'flow action aliases join the same numeric event');
+
+const bondArticles=[
+ make(1001,"삼성운용 'KODEX 미국10년국채액티브(H)'ETF 순자산 2000억 돌파",'수급·성과').a,
+ make(1002,'삼성자산운용, 미국 10년 국채 ETF 순자산 2000억원 돌파','수급·성과').a,
+ make(1003,"삼성자산운용 'KODEX 미국10년국채 ETF', 순자산 2000억 돌파",'수급·성과').a,
+ make(1004,'삼성자산운용, 美 10년 국채 ETF 순자산 2천억원 돌파','수급·성과').a,
+ make(1005,'KODEX 미국 10년 국채 액티브(H) ETF 순자산 0.2조원 돌파','수급·성과').a
+];
+bondArticles[0]={...bondArticles[0],summary:'본문으로 검증한 상품과 순자산 수치입니다.',summaryKind:'summary'};
+const bonds=compressFlowTopics(groupStories(bondArticles));assert.equal(bonds.length,1);assert.equal(bonds[0].a.id,'1001');assert.equal(bonds[0].others.length,4);assert.equal(new Set(bonds.flatMap(s=>[s.a,...s.others]).map(a=>a.id)).size,5);
+for(const title of ["KODEX 미국10년국채액티브(UH) ETF 순자산 2000억 돌파","ACE 미국10년국채액티브(H) ETF 순자산 2000억 돌파","KODEX 미국30년국채액티브(H) ETF 순자산 2000억 돌파","KODEX 미국10년국채액티브(H) ETF 순자산 3000억 돌파","KODEX 미국10년국채액티브(H) ETF 개인 순매수 2000억 돌파","KODEX 미국10년국채선물 ETF 순자산 2000억 돌파"]){assert.equal(compressFlowTopics(groupStories([bondArticles[0],make(1010,title,'수급·성과').a])).length,2,title)}
+const unhedged=make(1020,'KODEX 미국10년국채액티브(UH) ETF 순자산 2000억 돌파','수급·성과').a;
+assert.equal(compressFlowTopics(groupStories([bondArticles[0],unhedged,bondArticles[1]])).length,3,'an unspecified hedge cannot bridge two named variants');
+assert.equal(compressFlowTopics(groupStories([bondArticles[0],{...bondArticles[1],date:'2026-10-30',published:'2026-10-30T00:00:00Z'}])).length,2,'separate dated milestones');
+console.log('PASS: generic Korean Treasury AUM aliases resolve from unique nearby fund evidence; verified representative retained; H/UH ambiguity, issuer/tenor/amount/metric/instrument/date boundaries preserved');
+
+assert.equal(compressFlowTopics(groupStories([bondArticles[0],make(1030,'삼성운용 KODEX 미국10년국채 ETF 순자산 2천억원','수급·성과').a])).length,1,'snapshot title can join an unambiguous adjacent milestone even if the action word is omitted');
+
+for(const title of ['KODEX 미국10년국채액티브(H) ETF 순자산 2000억 달러 돌파','KODEX 미국10년국채액티브(H) ETF 순자산 2000억원 돌파 목표','KODEX 미국10년국채액티브(H) ETF 순자산 2000억원 돌파…다른 상품과 비교'])assert.equal(groupStories([bondArticles[0],make(1040,title,'수급·성과').a]).length,2,'currency, forward targets and distinct analysis must not be inferred as the same event');
