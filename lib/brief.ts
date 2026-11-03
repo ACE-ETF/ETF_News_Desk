@@ -6,8 +6,25 @@ import {canGroupStories,canJoinRecordMilestone,isCryptoStory} from './story-even
 import {importance} from './ranking';
 import type {Article} from './news';
 export type Story={a:Article;others:Article[];relatedKind?:'coverage'};
+function batteryMilestone(article: Article): string {
+ const title = article.title.normalize('NFKC');
+ if (!/삼성(?:자산)?운용|KODEX/i.test(title) || !/ETF/i.test(title) || !/순자산/.test(title)) return '';
+ if (/레버리지|인버스|비교|전망|목표|\[증권톡톡\]/.test(title)) return '';
+ const named = /전고체[\s·]*(?:배터리[\s·]*)?ESS/i.test(title);
+ const alias = /배터리|ESS|삼성SDI.{0,8}LG엔솔/.test(title);
+ const amount = title.match(/순자산\s*(3,?342|3,?000|3천)\s*억/);
+ if (!amount || !(named || alias && /^3,?342$/.test(amount[1]))) return '';
+ return 'kodex:battery-ess:3000:3342:' + article.date;
+}
+
+function isCoveredBatteryRoundup(story: Story, stories: Story[]): boolean {
+ const {a} = story;
+ if (!/^\[증권톡톡\].*삼성운용.*배터리TOP2 ETF.*순자산 3000억.*한투운용.*메모리반도체 ETF.*상장/.test(a.title)) return false;
+ return stories.some(s => s.a.date === a.date && !!batteryMilestone(s.a))
+  && stories.some(s => s.a.date === a.date && /ACE.*메모리반도체.*ETF.*상장/i.test(s.a.title));
+}
 export function briefStories(stories:Story[],limit=10){
- const eligible=stories.filter(s=>!sourceDateNote(s.a)&&importance(s.a).score>=20&&s.a.category!=='마케팅');
+ const eligible=stories.filter(s=>!sourceDateNote(s.a)&&importance(s.a).score>=20&&s.a.category!=='마케팅'&&!isCoveredBatteryRoundup(s,stories));
  const selected:Story[]=[];const counts=new Map<string,number>();
  const add=(story:Story)=>{if(selected.length>=limit||selected.includes(story))return false;if(isCryptoStory(story.a)&&selected.some(s=>isCryptoStory(s.a)))return false;const n=counts.get(story.a.category)||0;if(n>=Math.ceil(limit*0.4)&&importance(story.a).level!=='상')return false;selected.push(story);counts.set(story.a.category,n+1);return true};
  // Use the incoming importance/time order; no reserved slots for an editorial theme.
@@ -24,6 +41,7 @@ function taxGuideKey(article: Article): string {
  return launch || accountStrategy || verified ? 'mirae:tiger-etf-tax-guide:' + article.date : '';
 }
 export function groupStories(articles:Article[],enabled=true):Story[]{
+ const batteryAnchors = new Set(articles.filter(a => /전고체배터리ESS\s*TOP2플러스/i.test(a.title)).map(batteryMilestone).filter(Boolean));
  const distributionKeys=distributionEventKeys(articles);
  const bondKeys=bondMilestoneKeys(articles);
  const storyKey=(a:Article)=>{const t=a.title;
@@ -32,7 +50,7 @@ export function groupStories(articles:Article[],enabled=true):Story[]{
  const taxGuideAnchors = new Set(articles.filter(a => /절세.{0,12}가이드\s*북/.test(a.title) && /발간|출시|공개/.test(a.title)).map(taxGuideKey).filter(Boolean));
  const result:Story[]=[];
  for(const a of articles){
-  const found=enabled?result.find(x=>{const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
+  const found=enabled?result.find(x=>{const battery=batteryMilestone(a);if(battery&&batteryAnchors.has(battery)&&battery===batteryMilestone(x.a))return true;const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
   if(found){if(![found.a,...found.others].some(b=>b.id===a.id||b.url===a.url)){if(a.summary&&!found.a.summary){found.others.push(found.a);found.a=a}else found.others.push(a)}}else result.push({a,others:[]});
  }
  return result;
