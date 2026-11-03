@@ -8,7 +8,15 @@ export function marketScope(article:Pick<Article,'title'|'summary'|'summaryKind'
  const text=article.title+' '+(article.summaryKind==='title_translation'?'':article.summary||'');
  const korean=/[가-힣]/.test(text);
  const domesticFund=(korean&&article.brands?.includes('ACE'))||/\b(?:ACE|TIGER|KODEX|RISE|HANARO|KIWOOM|TIMEFOLIO|KoAct|1Q)\b/.test(text)||/\b(?:SOL|PLUS)\s*[가-힣]/.test(text)||(korean&&/\b(?:SOL|PLUS)\s+(?:HBM|AI|S&P\s*500|200|100|TOP\s*\d|미국|글로벌)/.test(text))||/국내\s*상장|한국거래소|KRX|코스피\s*200|코스닥\s*150|코리아배당|고배당주Plus/.test(text);
- const overseasFund=/\b(?:IBIT|FBTC|GBTC|ETHA|ETHE|QQQ|QQQM|SPY|SPLG|VOO|VTI|SCHD|SCHG|JEPI|JEPQ|TSLL|TSLT|NVDL|NVDU|SPXL|SOXL|SOXS|TQQQ|SQQQ)\b/i.test(text)||/(?:미국|유럽|일본|홍콩|중국|런던|뉴욕|美).{0,12}(?:증시.{0,6})?상장|해외\s*상장|미국\s*(?:증시에|시장에)\s*상장/.test(text);
+ const overseasFund=/\b(?:IBIT|FBTC|GBTC|ETHA|ETHE|QQQ|QQQM|SPY|SPLG|VOO|VTI|SCHD|SCHG|JEPI|JEPQ|TSLL|TSLT|NVDL|NVDU|SPXL|SOXL|SOXS|TQQQ|SQQQ)\b/i.test(text)||/(?:미국|유럽|일본|홍콩|중국|런던|뉴욕|美)\s*(?:증시|거래소|시장)?(?:에|에서)\s*상장|(?:미국|유럽|일본|홍콩|중국|런던|뉴욕|美)\s*(?:증시|거래소|시장)\s*상장|해외\s*상장/.test(text);
+ const koreanListing = /Korea Exchange|\blisted in (?:South )?Korea\b|\bKorea-listed\b/i.test(text);
+ const overseasListing = /\b(?:NYSE Arca|Cboe BZX|Toronto Stock Exchange|Abu Dhabi Securities Exchange)\b|\blisted (?:in|on) (?:the )?(?:U\.S\.|US|Nasdaq|NYSE)\b|(?:아부다비|대만|캐나다|호주|싱가포르).{0,10}(?:교차\s*)?상장/i.test(text);
+ const crossListing = /교차\s*상장|cross[- ]list/i.test(text);
+ if (crossListing && (overseasListing || overseasFund)) return 'mixed';
+ if (overseasListing && !domesticFund && !koreanListing) return 'overseas';
+ if (koreanListing && !overseasFund) return 'domestic';
+ // A Korean issuer or Korean retirement account can be named in English coverage.
+ if (!overseasFund && !overseasListing && /Korea Investment (?:Management|Trust Management)|Hana Securities|Kiwoom (?:Asset Management|Securities)|Korea Financial Services Commission/i.test(text)) return 'domestic';
  if(domesticFund&&overseasFund)return 'mixed';
  if(domesticFund)return 'domestic';
  if(overseasFund)return 'overseas';
@@ -32,4 +40,17 @@ export function inMarketView(article:Pick<Article,'title'|'summary'|'summaryKind
 
 export function marketOrder(a:Pick<Article,'title'|'summary'|'summaryKind'|'marketHint'> & {brands?:string[]}){const scope=marketScope(a);return scope==='domestic'?0:isSharedInsight(a)?1:scope==='overseas'?2:3}
 
-export function marketGroupMatches(story:{a:Article;others:Article[]},view:MarketView){return [story.a,...story.others].some(a=>inMarketView(a,view))}
+export function storyMarketScope(story:{a:Article;others:Article[]}):MarketScope {
+ const representative = marketScope(story.a);
+ if (representative !== 'unknown') return representative;
+ const scopes = new Set(story.others.map(marketScope).filter(scope => scope !== 'unknown'));
+ if (scopes.size > 1) return 'mixed';
+ return Array.from(scopes)[0] || 'unknown';
+}
+
+export function marketGroupMatches(story:{a:Article;others:Article[]},view:MarketView) {
+ if (view === 'all') return true;
+ const scope = storyMarketScope(story);
+ return scope === view || scope === 'mixed' ||
+  (scope === 'unknown' && [story.a,...story.others].some(isSharedInsight));
+}

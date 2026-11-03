@@ -83,3 +83,13 @@ assert.deepEqual(articleBrands({id:'647507794034032f9b7a92d9d2d3eb942223855d0fb3
 console.log('PASS: verified excerpt and summary brand evidence; translations cannot invent brand membership');
 
 assert.equal(marketScope({title:'일반 ETF 속에 3배 레버리지…꼼수 운용 논란',brands:['ACE']}),'domestic');
+
+check("South Korea's Korea Investment Management Lists ETF Splitting Global Memory Chip Trio and Government Bonds 50-50", 'domestic');
+check('Hana Securities Launches ETF Savings Service for Retirement Pension Accounts', 'domestic');
+check('Mulvihill lists new corporate bond ETF on the Toronto Stock Exchange', 'overseas');
+check('한화운용 K방산 ETF, 아부다비 증시 교차상장', 'mixed');
+const domesticEvent={a:{title:'ACE 미국S&P500 ETF 신규 상장'},others:[common,{title:'Vanguard ETF expands',marketHint:'overseas'}]};
+assert(marketGroupMatches(domesticEvent,'domestic'));
+assert(!marketGroupMatches(domesticEvent,'overseas'));
+check('ACE 미국채 ETF 상장', 'domestic');
+check('키움증권, 미국 증시에 상장된 QQQ ETF 매매 지원', 'overseas');
