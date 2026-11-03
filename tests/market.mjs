@@ -87,7 +87,8 @@ assert.equal(marketScope({title:'일반 ETF 속에 3배 레버리지…꼼수 �
 check("South Korea's Korea Investment Management Lists ETF Splitting Global Memory Chip Trio and Government Bonds 50-50", 'domestic');
 check('Hana Securities Launches ETF Savings Service for Retirement Pension Accounts', 'domestic');
 check('Mulvihill lists new corporate bond ETF on the Toronto Stock Exchange', 'overseas');
-check('한화운용 K방산 ETF, 아부다비 증시 교차상장', 'mixed');
+check('한화운용 K방산 ETF, 아부다비 증시 교차상장', 'overseas');
+check('한화운용 국내 상장된 ETF, 아부다비 증시 교차상장', 'mixed');
 const domesticEvent={a:{title:'ACE 미국S&P500 ETF 신규 상장'},others:[common,{title:'Vanguard ETF expands',marketHint:'overseas'}]};
 assert(marketGroupMatches(domesticEvent,'domestic'));
 assert(!marketGroupMatches(domesticEvent,'overseas'));

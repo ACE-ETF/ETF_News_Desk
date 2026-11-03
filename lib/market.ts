@@ -12,7 +12,10 @@ export function marketScope(article:Pick<Article,'title'|'summary'|'summaryKind'
  const koreanListing = /Korea Exchange|\blisted in (?:South )?Korea\b|\bKorea-listed\b/i.test(text);
  const overseasListing = /\b(?:NYSE Arca|Cboe BZX|Toronto Stock Exchange|Abu Dhabi Securities Exchange)\b|\blisted (?:in|on) (?:the )?(?:U\.S\.|US|Nasdaq|NYSE)\b|(?:아부다비|대만|캐나다|호주|싱가포르).{0,10}(?:교차\s*)?상장/i.test(text);
  const crossListing = /교차\s*상장|cross[- ]list/i.test(text);
- if (crossListing && (overseasListing || overseasFund)) return 'mixed';
+ if (crossListing && (overseasListing || overseasFund)) {
+  const explicitlyDomestic = koreanListing || /국내\s*상장(?:된|한)|한국거래소|코스피\s*상장/.test(text);
+  return explicitlyDomestic ? 'mixed' : 'overseas';
+ }
  if (overseasListing && !domesticFund && !koreanListing) return 'overseas';
  if (koreanListing && !overseasFund) return 'domestic';
  // A Korean issuer or Korean retirement account can be named in English coverage.
