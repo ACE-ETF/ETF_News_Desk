@@ -12,6 +12,12 @@ await assert.rejects(()=>pipeline.receiveFeed(id,1,xml));assert.equal((await pip
 assert(!(await news.getNews()).articles.some(a=>a.title==='ACE 신규 ETF 출시'));assert(!(await news.getNews()).dates.includes('2026-11-02'));assert((await news.getNews(undefined,true)).articles.some(a=>a.title==='ACE 신규 ETF 출시'));
 assert((await pipeline.reserveQuery(id,1)).reserved);await pipeline.queryFailed(id,1,503);assert((await pipeline.reserveQuery(id,2)).skipped);await pipeline.finishBatch(id);
 const health=await pipeline.collectionHealth();assert.equal(health.batches[0].results[1].code,503);assert.equal(health.rawArticles.length,1);assert.equal(health.batches[0].results[0].received,2);
+assert.equal(health.batches[0].results[0].rejected.outsideWindow,1);
+const splitPlans=Array.from({length:6},(_,i)=>pipeline.plan(Date.now()+i*6*3600000));
+assert.deepEqual(splitPlans.map(p=>p.queries.length).sort(),[3,3,4,4,4,5]);
+assert(splitPlans.some(p=>p.queries.some(q=>q.q.includes("(equity OR sector)"))));
+assert(splitPlans.some(p=>p.queries.some(q=>q.q.includes("-신규상장"))));
+assert.equal(pipeline.plan(Date.now(),"release").queries.length,2);
 const published=await pipeline.publishStaged();assert.equal(published.published,true);assert.equal(published.articles,1);assert.equal((await news.getNews()).status.partial,true);assert.equal((await pipeline.publishStaged()).added,0);assert((await news.getNews()).dates.includes('2026-11-02'));assert(objects.has('days/2026-10-30.json'));
 Date.now=()=>Date.parse('2026-11-03T08:00:00+09:00');const before=(await news.getNews()).window;assert.equal((await pipeline.publishStaged()).published,false);assert.deepEqual((await news.getNews()).window,before);
 Date.now=()=>Date.parse('2026-11-07T08:00:00+09:00');assert.equal((await pipeline.startBatch('release')).skipped,true);assert((await pipeline.startBatch('stage')).batch);

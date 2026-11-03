@@ -6,7 +6,9 @@ const HOUR=3600000;
 const db=()=>(env as unknown as {BUCKET:R2Bucket}).BUCKET;
 const jsonOptions={httpMetadata:{contentType:'application/json'}};
 const read=async<T>(key:string):Promise<T|null>=>{const o=await db().get(key);return o?o.json<T>():null};
-export type Batch={id:string;mode:'stage'|'release';started:string;finished?:string;start:string;end:string;queries:{q:string;hl:string;gl:string;ceid:string}[];results:Record<string,{state:'started'|'success'|'failed';received?:number;accepted?:number;saturated?:boolean;code?:number;reason?:string}>;fallbackCount:number;coverageGap?:boolean};
+export type Batch={id:string;mode:'stage'|'release';started:string;finished?:string;start:string;end:string;queries:{q:string;hl:string;gl:string;ceid:string}[];results:Record<string,{state:'started'|'success'|'failed';received?:number;accepted?:number;saturated?:boolean;rejected?:FeedRejections;code?:number;reason?:string}>;fallbackCount:number;coverageGap?:boolean};
+type FeedRejections = { invalidDate: number; outsideWindow: number; invalidMetadata: number; unrelatedTitle: number };
+
 export function plan(now=Date.now(),mode:'stage'|'release'='stage'){
  const window=collectionWindow(now);const slot=Math.floor(now/(6*HOUR));
  const end=mode==='release'?window.end:now;
@@ -14,7 +16,27 @@ export function plan(now=Date.now(),mode:'stage'|'release'='stage'){
  const start=end-12*HOUR;
  const bases=collectionQueries({start,end});
  const chosen=mode==='release'?[bases[0],bases[3+slot%3]]:[bases[0],bases[1+slot%2],bases[3+slot%3]];
- const queries=chosen.map(q=>({...q,q:q.q.replace(/ when:2d$| after:.*$/,'')+(q.gl==='KR'&&q.q.startsWith('ETF ')?' -비트코인 -이더리움 -가상자산 -암호화폐':'')+' when:1d'}));
+ const queries = chosen.flatMap(query => {
+  const base = query.q.replace(/ when:2d$| after:.*$/, '');
+  let terms = [base];
+  if (mode === 'stage' && base === '상장지수펀드') {
+   terms = [
+    base + ' (신규상장 OR 출시 OR 상품 OR 제도 OR 규제)',
+    base + ' -신규상장 -출시 -상품 -제도 -규제',
+   ];
+  }
+  if (mode === 'stage' && base.includes('(equity OR sector OR dividend OR launch OR fees OR regulation)')) {
+   const topic = '(equity OR sector OR dividend OR launch OR fees OR regulation)';
+   terms = [
+    base.replace(topic, '(equity OR sector)'),
+    base.replace(topic, '(dividend OR launch OR fees OR regulation) -equity -sector'),
+   ];
+  }
+  return terms.map(q => ({
+   ...query,
+   q: q + (query.gl === 'KR' && base === 'ETF' ? ' -비트코인 -이더리움 -가상자산 -암호화폐' : '') + ' when:1d',
+  }));
+ });
  return {id:mode==='release'?'release-'+new Date(window.end).toISOString():'stage-'+slot,mode,start:new Date(start).toISOString(),end:new Date(end).toISOString(),queries,publicationWindow:{start:new Date(window.start).toISOString(),end:new Date(window.end).toISOString()},businessDay:isBusinessDay(now),cadence:'매일 01:10·07:10·13:10·19:10 수집 / 한국 영업일 07:40 공개'};
 }
 export async function startBatch(mode:'stage'|'release'){
@@ -34,10 +56,22 @@ const tag=(s:string,n:string)=>decode(s.match(new RegExp('<'+n+'(?: [^>]*)?>([\\
 export function parseFeed(xml:string,query:Batch['queries'][number],window:{start:string;end:string}){
  if(xml.length>2000000||!/<rss[\s>]/i.test(xml)||/<!ENTITY/i.test(xml))throw new Error('RSS 형식 오류');
  const received=[...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)];
+ const rejected: FeedRejections = { invalidDate: 0, outsideWindow: 0, invalidMetadata: 0, unrelatedTitle: 0 };
+ const start = Date.parse(window.start);
+ const end = Date.parse(window.end);
  const rows=received.flatMap(m=>{const x=m[1],source=tag(x,'source'),raw=tag(x,'title'),title=raw.endsWith(' - '+source)?raw.slice(0,-source.length-3):raw;const published=Date.parse(tag(x,'pubDate')),url=tag(x,'link');
-  if(!Number.isFinite(published)||published<Date.parse(window.start)||published>=Date.parse(window.end)||!/^https:\/\/news\.google\.com\/(?:rss\/)?articles\//.test(url)||!title||title.length>400||!(/\bETFs?\b|exchange[ -]traded funds?|상장지수펀드/i.test(title)))return [];
+  if (!Number.isFinite(published)) { rejected.invalidDate++; return []; }
+  if (published < start || published >= end) { rejected.outsideWindow++; return []; }
+  if (!/^https:\/\/news\.google\.com\/(?:rss\/)?articles\//.test(url) || !title || title.length > 400) {
+   rejected.invalidMetadata++;
+   return [];
+  }
+  if (!/\bETFs?\b|exchange[ -]traded funds?|상장지수펀드/i.test(title)) {
+   rejected.unrelatedTitle++;
+   return [];
+  }
   const a={title,url,source,published:new Date(published).toISOString(),date:kdate(published),category:category(title),brands:[] as string[],language:query.gl==='US'?'en' as const:'ko' as const,...(query.gl==='US'?{marketHint:'overseas' as const}:{})};a.brands=articleBrands({...a,id:''});if(query.q.startsWith('(ACE OR'))a.brands=[...new Set([...a.brands,'ACE'])];return [a];
- });return {rows,received:received.length,saturated:received.length>=100};
+ });return {rows,received:received.length,rejected,saturated:received.length>=100};
 }
 async function identify(rows:Omit<Article,'id'>[]){return Promise.all(rows.map(async a=>{const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(a.url));return {...a,id:Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,'0')).join('')}}))}
 async function saveStaged(rows:Article[]){for(const day of new Set(rows.map(a=>a.date)))await saveDay(day,rows.filter(a=>a.date===day),true)}
@@ -45,14 +79,14 @@ async function updateBatch(id:string,update:(b:Batch)=>Batch){const key='pipelin
 export async function reserveQuery(id:string,index:number){
  const b=await read<Batch>('pipeline/batches/'+id+'.json');if(!b||!Number.isInteger(index)||!b.queries[index])throw new Error('회차·질의 오류');
  if(b.finished||b.results[index])return {skipped:true};
- if(Object.values(b.results).some(r=>r.state==='failed'&&[429,502,503,0].includes(r.code||0)))return {skipped:true,reason:'이 회차의 Google 요청 중단'};
+ if(Object.values(b.results).some(r=>r.state==='failed'&&[403,429,502,503,0].includes(r.code||0)))return {skipped:true,reason:'이 회차의 Google 요청 중단'};
  const ok=await db().put('pipeline/requests/'+id+'/'+index+'.json',JSON.stringify({at:new Date().toISOString()}),{...jsonOptions,onlyIf:{etagDoesNotMatch:'*'}});if(!ok)return {skipped:true};
  await updateBatch(id,x=>({...x,results:{...x.results,[index]:{state:'started'}}}));return {reserved:true,query:b.queries[index]};
 }
 export async function receiveFeed(id:string,index:number,xml:string){
  const b=await read<Batch>('pipeline/batches/'+id+'.json');if(!b||b.finished||b.results[index]?.state!=='started')throw new Error('예약되지 않았거나 완료된 질의');
  const p=parseFeed(xml,b.queries[index],b),articles=await identify(p.rows);await saveStaged(articles);
- await updateBatch(id,x=>({...x,results:{...x.results,[index]:{state:'success',received:p.received,accepted:articles.length,saturated:p.saturated}}}));return {saved:articles.length,received:p.received,saturated:p.saturated};
+ await updateBatch(id,x=>({...x,results:{...x.results,[index]:{state:'success',received:p.received,accepted:articles.length,saturated:p.saturated,rejected:p.rejected}}}));return {saved:articles.length,received:p.received,saturated:p.saturated,rejected:p.rejected};
 }
 export async function queryFailed(id:string,index:number,code:number){return updateBatch(id,b=>{if(b.finished||b.results[index]?.state!=='started')throw new Error('예약되지 않은 질의');return {...b,results:{...b.results,[index]:{state:'failed',code,reason:code?'피드 응답 '+code:'연결 실패'}}}})}
 export async function fallbackImport(id:string,items:unknown){
