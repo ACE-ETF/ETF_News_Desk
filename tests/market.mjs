@@ -94,3 +94,4 @@ assert(marketGroupMatches(domesticEvent,'domestic'));
 assert(!marketGroupMatches(domesticEvent,'overseas'));
 check('ACE 미국채 ETF 상장', 'domestic');
 check('키움증권, 미국 증시에 상장된 QQQ ETF 매매 지원', 'overseas');
+check('한화운용 방산 ETF, NYSE-ADX 교차 상장', 'overseas');
