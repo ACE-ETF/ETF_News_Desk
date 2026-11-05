@@ -6,6 +6,15 @@ import {canGroupStories,canJoinRecordMilestone,isCryptoStory} from './story-even
 import {importance} from './ranking';
 import type {Article} from './news';
 export type Story={a:Article;others:Article[];relatedKind?:'coverage'};
+function aceAllocationSeminarKey(article: Article): string {
+ const title = article.title.normalize('NFKC');
+ if (!/한투운용|한국투자신탁운용/.test(title) || !/채권\s*혼합/.test(title) || !/ETF/i.test(title)) return '';
+ const named = /한투스테이션/.test(title);
+ const seminar = /세미나|라이브/.test(title) && /자산배분|6종/.test(title);
+ const verified = article.summaryKind === 'summary' && /세미나/.test(article.summary || '') && /ETF 6종/.test(article.summary || '');
+ return named || seminar || verified ? 'ace:bond-mix-allocation-seminar:' + article.date : '';
+}
+
 function kiwoomComicKey(article: Article): string {
  const title = article.title.normalize('NFKC');
  if (!/키움(?:투자)?(?:자산)?운용/.test(title) || !/ETF/i.test(title)) return '';
@@ -58,7 +67,7 @@ export function groupStories(articles:Article[],enabled=true):Story[]{
  const taxGuideAnchors = new Set(articles.filter(a => /절세.{0,12}가이드\s*북/.test(a.title) && /발간|출시|공개/.test(a.title)).map(taxGuideKey).filter(Boolean));
  const result:Story[]=[];
  for(const a of articles){
-  const found=enabled?result.find(x=>{const comic=kiwoomComicKey(a);if(comic&&comic===kiwoomComicKey(x.a))return true;const battery=batteryMilestone(a);if(battery&&batteryAnchors.has(battery)&&battery===batteryMilestone(x.a))return true;const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
+  const found=enabled?result.find(x=>{const seminar=aceAllocationSeminarKey(a);if(seminar&&seminar===aceAllocationSeminarKey(x.a))return true;const comic=kiwoomComicKey(a);if(comic&&comic===kiwoomComicKey(x.a))return true;const battery=batteryMilestone(a);if(battery&&batteryAnchors.has(battery)&&battery===batteryMilestone(x.a))return true;const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
   if(found){if(![found.a,...found.others].some(b=>b.id===a.id||b.url===a.url)){if(a.summary&&!found.a.summary){found.others.push(found.a);found.a=a}else found.others.push(a)}}else result.push({a,others:[]});
  }
  return result;
