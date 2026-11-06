@@ -1,13 +1,14 @@
 import {isBondAumStory,bondMilestoneKeys} from './bond-milestones';
-import type {Story} from './brief';
+import {performanceEventKeys,type Story} from './brief';
 import type {Article} from './news';
 import {cryptoFlowTopic} from './overseas-events';
 import {marketScope} from './market';
 import {importance} from './ranking';
 import {insightKind} from './insights';
 export type DisplayStory=Story;
-function coverageKey(s:Story,bondKeys:Map<string,string>){
+function coverageKey(s:Story,bondKeys:Map<string,string>,performanceKeys:Map<string,string>){
  const a=s.a,t=a.title;
+ const performance=performanceKeys.get(a.id);if(performance)return performance;
  if(isBondAumStory(a))return bondKeys.has(a.id)?'bond-milestone:'+bondKeys.get(a.id):undefined;
  // Keep high-impact changes and distinct editorial perspectives visible.
  if(importance(a).level==='상'||insightKind(a)||/상장폐지|거래정지|청산|괴리율|추적오차|liquidat|delist|trading halt|tracking error/i.test(t))return;
@@ -43,12 +44,14 @@ function informationScore(a:Article){
 // Select one informative representative per comparable coverage area. Remaining
 // articles become source links, never another stack of topic/event cards.
 export function compressStoryCoverage(stories:Story[]):Story[]{
- const bondKeys=bondMilestoneKeys(stories.flatMap(s=>[s.a,...s.others]));
+ const allArticles=stories.flatMap(s=>[s.a,...s.others]);
+ const performanceKeys=performanceEventKeys(allArticles);
+ const bondKeys=bondMilestoneKeys(allArticles);
  const buckets=new Map<string,Story[]>();
- for(const s of stories){const key=coverageKey(s,bondKeys);if(key)buckets.set(key,[...(buckets.get(key)||[]),s])}
+ for(const s of stories){const key=coverageKey(s,bondKeys,performanceKeys);if(key)buckets.set(key,[...(buckets.get(key)||[]),s])}
  const seen=new Set<string>(),out:Story[]=[];
  for(const s of stories){
-  const key=coverageKey(s,bondKeys),items=key?buckets.get(key):undefined;
+  const key=coverageKey(s,bondKeys,performanceKeys),items=key?buckets.get(key):undefined;
   if(!key||!items||items.length<2){out.push(s);continue}if(seen.has(key))continue;seen.add(key);
   const all=items.flatMap(e=>[e.a,...e.others]);
   const sorted=[...all].sort((a,b)=>informationScore(b)-informationScore(a)||b.published.localeCompare(a.published)||a.id.localeCompare(b.id));

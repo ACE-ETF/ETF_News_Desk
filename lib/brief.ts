@@ -57,8 +57,49 @@ function taxGuideKey(article: Article): string {
  const verified = article.summaryKind === 'summary' && /TIGER ETF 절세 투자 가이드북을 발간/.test(article.summary || '');
  return launch || accountStrategy || verified ? 'mirae:tiger-etf-tax-guide:' + article.date : '';
 }
+// Match return/distribution excerpts to one named product announcement. A generic
+// issuer headline inherits a product only from unambiguous same-day evidence.
+export function performanceEventKeys(articles:Article[]):Map<string,string>{
+ const issuers:[RegExp,string][]=[[/KB(?:자산)?운용|RISE/i,'RISE'],[/삼성(?:자산)?운용|KODEX/i,'KODEX'],[/미래에셋(?:자산)?운용|TIGER/i,'TIGER'],[/한국투자신탁운용|한투운용|ACE/i,'ACE'],[/신한(?:자산)?운용|SOL/i,'SOL'],[/한화(?:자산)?운용|PLUS/i,'PLUS'],[/키움(?:투자)?(?:자산)?운용|KIWOOM/i,'KIWOOM']];
+ const compact=(s:string)=>s.normalize('NFKC').replace(/美/g,'미국').replace(/[\s'"‘’“”]/g,'').toUpperCase();
+ const records=articles.map(a=>{
+  const title=compact(a.title),text=title+(a.summaryKind==='summary'?compact(a.summary||''):'');
+  const issuer=issuers.filter(([r])=>r.test(title)).map(([,v])=>v);
+  if(issuer.length!==1||!/ETF/.test(title)||!/수익률|수익|성과|배당투자/.test(text)||/목표|예상|전망|비교|상위.*종|이모저모|증권톡톡/.test(title))return;
+  const product=text.match(/(RISE|KODEX|TIGER|ACE|SOL|PLUS|KIWOOM)([가-힣A-Z0-9&+().·%-]+?)ETF/)?.[0]?.replace(/ETF$/,'')||'';
+  const match=text.match(/(?:수익률|수익|성과)[^%]{0,18}?(-?\d+(?:\.\d+)?)%/)||title.match(/(-?\d+(?:\.\d+)?)%/);
+  const raw=match?.[1]||'',value=match?Number(raw):undefined,precision=raw.includes('.')?raw.split('.')[1].length:0;
+  const period=title.match(/(\d+)(개월|년)(?:간)?수익률/)?.[0]||(/연초|올해/.test(title)?'ytd':/상장후|상장이후|출시후/.test(text)?'inception':'');
+  const payouts=[...text.matchAll(/(?:분배금|배당금)(?:은|이|이?좌당|1좌당|누적|총|약)*?(\d[\d,]*)원/g)].map(m=>Number(m[1].replace(/,/g,'')));
+  return {a,title,issuer:issuer[0],product,value,precision,period,payouts};
+ }).filter((x):x is NonNullable<typeof x>=>!!x);
+ const keys=new Map<string,string>();
+ const compatible=(x:typeof records[number],y:typeof records[number])=>{
+  if(x.period&&y.period&&x.period!==y.period)return false;
+  const tolerance=Math.pow(10,-Math.min(x.precision,y.precision))/2;
+  return (x.value===undefined||y.value===undefined||Math.abs(x.value-y.value)<tolerance+1e-8)&&(!x.payouts.length||!y.payouts.length||x.payouts.some(n=>y.payouts.includes(n)));
+ };
+ for(const x of records){
+  const anchors=records.filter(y=>y.product&&y.value!==undefined&&x.issuer===y.issuer&&x.a.date===y.a.date&&compatible(x,y)&&(!x.product||x.product===y.product));
+  const candidates=anchors.filter(y=>{
+   if(x.product)return true;
+   if(x.value===undefined&&!x.title.includes(y.product.replace(new RegExp('^'+y.issuer),'')))return false;
+   const features=['미국','한국','중국','일본','고배당','배당','반도체','채권','S&P500','나스닥100','코스피200','금현물','커버드콜','레버리지','인버스'];
+   const present=features.filter(f=>x.title.includes(f));
+   return present.length>0&&present.every(f=>y.product.includes(f));
+  });
+  // Keep the most precise measurement for each product/period, rather than
+  // making an integer headline a bridge between conflicting exact returns.
+  const strongest=candidates.filter(y=>!candidates.some(z=>z.product===y.product&&z.period===y.period&&z.precision>y.precision));
+  const signatures=[...new Set(strongest.map(y=>[y.product,y.period||'unspecified',y.value,y.payouts.join(',')].join(':')))];
+  if(signatures.length===1)keys.set(x.a.id,'performance:'+x.a.date+':'+signatures[0]);
+ }
+ return keys;
+}
+
 export function groupStories(articles:Article[],enabled=true):Story[]{
  const batteryAnchors = new Set(articles.filter(a => /전고체배터리ESS\s*TOP2플러스/i.test(a.title)).map(batteryMilestone).filter(Boolean));
+ const performanceKeys=performanceEventKeys(articles);
  const distributionKeys=distributionEventKeys(articles);
  const bondKeys=bondMilestoneKeys(articles);
  const storyKey=(a:Article)=>{const t=a.title;
@@ -67,7 +108,7 @@ export function groupStories(articles:Article[],enabled=true):Story[]{
  const taxGuideAnchors = new Set(articles.filter(a => /절세.{0,12}가이드\s*북/.test(a.title) && /발간|출시|공개/.test(a.title)).map(taxGuideKey).filter(Boolean));
  const result:Story[]=[];
  for(const a of articles){
-  const found=enabled?result.find(x=>{const seminar=aceAllocationSeminarKey(a);if(seminar&&seminar===aceAllocationSeminarKey(x.a))return true;const comic=kiwoomComicKey(a);if(comic&&comic===kiwoomComicKey(x.a))return true;const battery=batteryMilestone(a);if(battery&&batteryAnchors.has(battery)&&battery===batteryMilestone(x.a))return true;const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
+  const found=enabled?result.find(x=>{const pa=performanceKeys.get(a.id),pb=performanceKeys.get(x.a.id);if(pa&&pb)return pa===pb;const seminar=aceAllocationSeminarKey(a);if(seminar&&seminar===aceAllocationSeminarKey(x.a))return true;const comic=kiwoomComicKey(a);if(comic&&comic===kiwoomComicKey(x.a))return true;const battery=batteryMilestone(a);if(battery&&batteryAnchors.has(battery)&&battery===batteryMilestone(x.a))return true;const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
   if(found){if(![found.a,...found.others].some(b=>b.id===a.id||b.url===a.url)){if(a.summary&&!found.a.summary){found.others.push(found.a);found.a=a}else found.others.push(a)}}else result.push({a,others:[]});
  }
  return result;

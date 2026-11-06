@@ -1,7 +1,7 @@
 import fs from 'node:fs';import ts from 'typescript';import assert from 'node:assert/strict';
 const url=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64');
 const bondMilestonesURL=url(fs.readFileSync('lib/bond-milestones.ts','utf8'));
-const insightURL=url(fs.readFileSync('lib/insights.ts','utf8'));const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL).replaceAll('./insights',insightURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const overseasURL=url(fs.readFileSync('lib/overseas-events.ts','utf8'));const statementURL=url(fs.readFileSync('lib/statement-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8').replaceAll('./statement-events',statementURL).replaceAll('./overseas-events',overseasURL));const {briefStories,groupStories}=await import(url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./bond-milestones',bondMilestonesURL).replaceAll('./insights',insightURL).replaceAll('./ranking',rankURL).replaceAll('./overseas-events',overseasURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL)));
+const insightURL=url(fs.readFileSync('lib/insights.ts','utf8'));const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL).replaceAll('./insights',insightURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const overseasURL=url(fs.readFileSync('lib/overseas-events.ts','utf8'));const statementURL=url(fs.readFileSync('lib/statement-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8').replaceAll('./statement-events',statementURL).replaceAll('./overseas-events',overseasURL));const briefURL=url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./bond-milestones',bondMilestonesURL).replaceAll('./insights',insightURL).replaceAll('./ranking',rankURL).replaceAll('./overseas-events',overseasURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL));const {briefStories,groupStories}=await import(briefURL);
 const make=(i,title,category)=>({a:{id:String(i),title,category,published:'2026-10-29T00:00:00Z',source:'검증',url:'https://example.com/'+i,brands:[],date:'2026-10-29'},others:[]});
 const stories=[...Array.from({length:12},(_,i)=>make(i,'ETF 순자산 '+(i+1)+'조원 돌파','수급·성과')),...Array.from({length:5},(_,i)=>make(20+i,'운용사 '+i+' ETF 총보수 인하','상품·전략')),make(30,'ETF 특별배당 지급','배당·분배'),make(31,'ETF 신규 상장','신규 상장'),make(32,'ETF 거래정지 안내','제도·시장'),make(33,'ETF 분배금 지급 안내','배당·분배'),make(34,'ETF 경품 이벤트','마케팅')].sort((a,b)=>compareImportance(a.a,b.a));
 const selected=briefStories(stories);assert.equal(selected.length,10);assert(selected.some(s=>s.a.category==='제도·시장'));assert(selected.filter(s=>s.a.category==='수급·성과').length<=4);assert(!selected.some(s=>['33','34'].includes(s.a.id)));assert.equal(stories.length,22);
@@ -133,7 +133,7 @@ assert.equal(pair('Bitcoin ETF inflows on October 28 hit $137.3M','비트코인 
 const ambiguousFlow=[make(801,'Bitcoin ETFs attract $286M','수급·성과').a,make(802,'Bitcoin ETFs see $286M daily inflows','수급·성과').a,make(803,'Bitcoin ETFs see $286M inflows over two days','수급·성과').a];
 assert.equal(groupStories(ambiguousFlow).length,3,'unknown horizon cannot bridge daily and two-day totals');
 const topicMarketURL=url(fs.readFileSync('lib/market.ts','utf8').replaceAll('./insights',insightURL));
-const topicsURL=url(fs.readFileSync('lib/flow-topics.ts','utf8').replaceAll('./bond-milestones',bondMilestonesURL).replaceAll('./overseas-events',overseasURL).replaceAll('./market',topicMarketURL).replaceAll('./ranking',rankURL).replaceAll('./insights',insightURL));
+const topicsURL=url(fs.readFileSync('lib/flow-topics.ts','utf8').replaceAll('./brief',briefURL).replaceAll('./bond-milestones',bondMilestonesURL).replaceAll('./overseas-events',overseasURL).replaceAll('./market',topicMarketURL).replaceAll('./ranking',rankURL).replaceAll('./insights',insightURL));
 const {compressFlowTopics}=await import(topicsURL);
 const topicEvents=groupStories([make(810,'Bitcoin ETFs lose $255m over 30 days despite BlackRock inflows','수급·성과').a,make(811,'U.S. Spot Bitcoin ETFs See $292 Million in 30-Day Net Outflows','수급·성과').a,make(812,'美 비트코인(BTC) 현물 ETF, 30일간 2억9200만달러 순유출','수급·성과').a,make(813,'Bitcoin ETF Inflows Return as IBIT Trading Volume Shrinks','수급·성과').a,make(814,'SEC approves Bitcoin ETF rules','제도·시장').a].map(a=>({...a,marketHint:'overseas'})));
 const topicDisplay=compressFlowTopics(topicEvents);assert.equal(topicDisplay.length,2);assert.equal(topicDisplay[0].others.length,3);assert.equal(topicDisplay[0].relatedKind,'coverage');assert.equal(topicDisplay[1].a.id,'814');
@@ -179,3 +179,21 @@ const preciseBond=make(1050,'삼성운용 美 10년물 국채 ETF, 순자산 204
 assert.equal(compressFlowTopics(groupStories([verifiedBond,preciseBond])).length,1,'verified body explicitly connects milestone threshold and precise AUM');
 assert.equal(compressFlowTopics(groupStories([bondArticles[0],preciseBond])).length,2,'no numeric approximation without verified evidence');
 assert.equal(compressFlowTopics(groupStories([{...verifiedBond,summaryKind:'title_translation'},preciseBond])).length,2,'a title translation is not body evidence for a new amount');
+
+const performanceAnchor={...make(901,'KB운용, 美 고배당 ETF 상장 이후 수익률 17%대','수급·성과').a,summary:'RISE 미국고배당다우존스TOP10 ETF가 상장 이후 17.10% 수익률을 기록했다. 누적 분배금은 370원이다.',summaryKind:'summary'};
+const performanceReports=[
+ 'KB운용, 미국 고배당 ETF 수익률 17% 기록',
+ 'KB운용, AI 기술주 쏠림 부담에 고배당 ETF 주목…상장 후 수익률 17%',
+ 'KB자산운용 고배당 ETF, 상장 후 17.1% 수익…누적 분배금 370원',
+ 'KB자산운용, 美고배당 ETF 수익률 17%…11개월간 분배금 370원 지급',
+ "KB자산운용, '미국고배당다우존스TOP10' ETF 배당투자 주목"
+].map((t,i)=>make(902+i,t,i<2?'수급·성과':'배당·분배').a);
+const groupedPerformance=groupStories([...performanceReports,performanceAnchor]);
+assert.equal(groupedPerformance.length,1);assert.equal(groupedPerformance[0].a.id,performanceAnchor.id);assert.equal(groupedPerformance[0].others.length,5);
+for(const t of [
+ 'KB운용 RISE 미국고배당다우존스TOP10 ETF 1개월 수익률 17.1%',
+ 'KB운용 RISE 미국고배당다우존스TOP10 ETF 상장 후 수익률 18.1%',
+ 'KB운용 RISE 미국고배당다우존스TOP10 ETF 상장 후 수익률 17.1% 누적 분배금 400원',
+ 'KB운용 RISE 미국배당100 ETF 상장 후 수익률 17.1%'
+])assert.equal(groupStories([performanceAnchor,make(920,t,'수급·성과').a]).length,2,t);
+console.log('PASS: product performance announcement aliases across categories, rounded returns, verified representative, separate products/periods/returns/payouts');
