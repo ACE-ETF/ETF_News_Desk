@@ -6,14 +6,14 @@ const HOUR=3600000;
 const db=()=>(env as unknown as {BUCKET:R2Bucket}).BUCKET;
 const jsonOptions={httpMetadata:{contentType:'application/json'}};
 const read=async<T>(key:string):Promise<T|null>=>{const o=await db().get(key);return o?o.json<T>():null};
-export type Batch={id:string;mode:'stage'|'release';started:string;finished?:string;start:string;end:string;queries:{q:string;hl:string;gl:string;ceid:string}[];results:Record<string,{state:'started'|'success'|'failed';received?:number;accepted?:number;saturated?:boolean;rejected?:FeedRejections;code?:number;reason?:string}>;fallbackCount:number;coverageGap?:boolean};
+export type Batch={id:string;mode:'stage'|'release';started:string;finished?:string;start:string;end:string;queries:{q:string;hl:string;gl:string;ceid:string;start?:string;end?:string;recoveryTruncated?:boolean}[];results:Record<string,{state:'started'|'success'|'failed';received?:number;accepted?:number;saturated?:boolean;rejected?:FeedRejections;code?:number;reason?:string}>;fallbackCount:number;coverageGap?:boolean};
 type FeedRejections = { invalidDate: number; outsideWindow: number; invalidMetadata: number; unrelatedTitle: number };
 
 export function plan(now=Date.now(),mode:'stage'|'release'='stage'){
- const window=collectionWindow(now);const slot=Math.floor(now/(6*HOUR));
+ const window=collectionWindow(now);const slot=Math.floor(now/(4*HOUR));
  const end=mode==='release'?window.end:now;
- // Twelve-hour overlap absorbs delayed feed indexing; bootstrap/catch-up is bounded to 72 hours.
- const start=end-12*HOUR;
+ // Four-hour cadence plus one hour for delayed indexing; missed windows are bounded below.
+ const start=end-5*HOUR;
  const bases=collectionQueries({start,end});
  const chosen=mode==='release'?[bases[0],bases[3+slot%3]]:[bases[0],bases[1+slot%2],bases[3+slot%3]];
  const queries = chosen.flatMap(query => {
@@ -37,18 +37,32 @@ export function plan(now=Date.now(),mode:'stage'|'release'='stage'){
    q: q + (query.gl === 'KR' && base === 'ETF' ? ' -비트코인 -이더리움 -가상자산 -암호화폐' : '') + ' when:1d',
   }));
  });
- return {id:mode==='release'?'release-'+new Date(window.end).toISOString():'stage-'+slot,mode,start:new Date(start).toISOString(),end:new Date(end).toISOString(),queries,publicationWindow:{start:new Date(window.start).toISOString(),end:new Date(window.end).toISOString()},businessDay:isBusinessDay(now),cadence:'매일 01:10·07:10·13:10·19:10 수집 / 한국 영업일 07:40 공개'};
+ return {id:mode==='release'?'release-'+new Date(window.end).toISOString():'stage-'+slot,mode,start:new Date(start).toISOString(),end:new Date(end).toISOString(),queries,publicationWindow:{start:new Date(window.start).toISOString(),end:new Date(window.end).toISOString()},businessDay:isBusinessDay(now),cadence:'매일 01:10·05:10·09:10·13:10·17:10·21:10 수집 / 한국 영업일 07:40 공개'};
+}
+async function queryProgressKey(q:Batch['queries'][number]){
+ const identity=[q.q.replace(/ when:\d+[hd]$/,''),q.hl,q.gl,q.ceid].join('|');
+ const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(identity));
+ return 'pipeline/query-success/'+Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,'0')).join('')+'.json';
 }
 export async function startBatch(mode:'stage'|'release'){
  const p=plan(Date.now(),mode);if(mode==='release'&&!p.businessDay)return {skipped:true,reason:'한국 주말·공휴일',...p};
  const key='pipeline/batches/'+p.id+'.json';const prior=await read<Batch>(key);if(prior)return {skipped:true,reason:'이미 시작한 회차입니다. 원문을 재요청하지 않습니다.',batch:prior,...p};
  const latest=await read<{end:string}>('pipeline/latest-success.json');
- const earliest=Math.max(Date.parse(p.end)-72*HOUR,latest?Date.parse(latest.end)-2*HOUR:collectionWindow().start);
- const batch:Batch={id:p.id,mode,started:new Date().toISOString(),start:new Date(Math.min(Date.parse(p.start),earliest)).toISOString(),end:p.end,queries:p.queries,results:{},fallbackCount:0,coverageGap:!!latest&&Date.parse(latest.end)<Date.parse(p.end)-72*HOUR};
- // Search bounds widen only after missed intervals, never by adding requests.
- const hours=Math.ceil((Date.parse(batch.end)-Date.parse(batch.start))/HOUR);
- batch.queries=batch.queries.map(q=>({...q,q:q.q.replace(/ when:1d$/,' when:'+Math.max(6,hours)+'h')}));
+
+ const end=Date.parse(p.end);
+ // Each rotating query resumes its own successful boundary. Healthy queries
+ // do not widen their range merely because another query failed.
+ const queries=await Promise.all(p.queries.map(async q=>{
+  const previous=await read<{end?:string;retryFrom?:string}>(await queryProgressKey(q));
+  const last=previous?.end||latest?.end;
+  const since=previous?.retryFrom?Date.parse(previous.retryFrom):last?Date.parse(last)-HOUR:Math.min(Date.parse(p.start),collectionWindow().start);
+  const start=Math.max(end-72*HOUR,Math.min(since,end-HOUR));
+  const hours=Math.max(1,Math.ceil((end-start)/HOUR));
+  return {...q,start:new Date(start).toISOString(),end:p.end,recoveryTruncated:since<end-72*HOUR,q:q.q.replace(/ when:1d$/,' when:'+hours+'h')};
+ }));
+ const batch:Batch={id:p.id,mode,started:new Date().toISOString(),start:new Date(Math.min(...queries.map(q=>Date.parse(q.start)))).toISOString(),end:p.end,queries,results:{},fallbackCount:0,coverageGap:queries.some(q=>q.recoveryTruncated)};
  const ok=await db().put(key,JSON.stringify(batch),{...jsonOptions,onlyIf:{etagDoesNotMatch:'*'}});
+ if(ok)for(const q of queries)await db().put(await queryProgressKey(q),JSON.stringify({retryFrom:q.start}),{...jsonOptions,onlyIf:{etagDoesNotMatch:'*'}});
  return ok?{...p,batch}:{skipped:true,reason:'다른 작업이 이 회차를 시작했습니다.',...p};
 }
 const decode=(s:string)=>s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&apos;|&#39;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>');
@@ -85,7 +99,7 @@ export async function reserveQuery(id:string,index:number){
 }
 export async function receiveFeed(id:string,index:number,xml:string){
  const b=await read<Batch>('pipeline/batches/'+id+'.json');if(!b||b.finished||b.results[index]?.state!=='started')throw new Error('예약되지 않았거나 완료된 질의');
- const p=parseFeed(xml,b.queries[index],b),articles=await identify(p.rows);await saveStaged(articles);
+ const p=parseFeed(xml,b.queries[index],{start:b.queries[index].start||b.start,end:b.queries[index].end||b.end}),articles=await identify(p.rows);await saveStaged(articles);
  await updateBatch(id,x=>({...x,results:{...x.results,[index]:{state:'success',received:p.received,accepted:articles.length,saturated:p.saturated,rejected:p.rejected}}}));return {saved:articles.length,received:p.received,saturated:p.saturated,rejected:p.rejected};
 }
 export async function queryFailed(id:string,index:number,code:number){return updateBatch(id,b=>{if(b.finished||b.results[index]?.state!=='started')throw new Error('예약되지 않은 질의');return {...b,results:{...b.results,[index]:{state:'failed',code,reason:code?'피드 응답 '+code:'연결 실패'}}}})}
@@ -96,9 +110,16 @@ export async function fallbackImport(id:string,items:unknown){
  await saveStaged(rows);await updateBatch(id,b=>({...b,fallbackCount:b.fallbackCount+rows.length}));return {saved:rows.length};
 }
 export async function finishBatch(id:string){const b=await updateBatch(id,b=>({...b,finished:b.finished||new Date().toISOString()}));
+ // A successful zero-result response is still a completed interval. Failed or
+ // unrequested queries never advance their boundary.
+ for(const [i,q] of b.queries.entries()){
+  if(b.results[i]?.state!=='success')continue;
+  const key=await queryProgressKey(q),previous=await read<{end?:string}>(key),end=q.end||b.end;
+  if(!previous?.end||previous.end<end)await db().put(key,JSON.stringify({end}),jsonOptions);
+ }
  const accepted=Object.values(b.results).reduce((n,r)=>n+(r.accepted||0),0)+b.fallbackCount;
  await db().put('staging/status.json',JSON.stringify({updated:b.finished,fetched:accepted,errors:Object.values(b.results).filter(r=>r.state==='failed').map(r=>r.reason),batch:id}),jsonOptions);
- if(accepted&&b.fallbackCount===0&&Object.keys(b.results).length===b.queries.length&&Object.values(b.results).every(r=>r.state==='success')){const previous=await read<{end:string}>('pipeline/latest-success.json');if(!previous||previous.end<b.end)await db().put('pipeline/latest-success.json',JSON.stringify({end:b.end}),jsonOptions)}return {saved:accepted,batch:b};
+ if(b.fallbackCount===0&&Object.keys(b.results).length===b.queries.length&&Object.values(b.results).every(r=>r.state==='success')){const previous=await read<{end:string}>('pipeline/latest-success.json');if(!previous||previous.end<b.end)await db().put('pipeline/latest-success.json',JSON.stringify({end:b.end}),jsonOptions)}return {saved:accepted,batch:b};
 }
 export async function publishStaged(){
  const now=Date.now(),w=collectionWindow(now);if(!isBusinessDay(now)||kdate(w.end)!==kdate(now))return {skipped:true,reason:'공개 시각 이전 또는 한국 휴일'};
@@ -106,11 +127,11 @@ export async function publishStaged(){
  const old=await getNews();for(const day of new Set(data.articles.map(a=>a.date)))await saveDay(day,data.articles.filter(a=>a.date===day));
  const health=await collectionHealth();const batches=health.batches.filter(b=>Date.parse(b.end)>w.start&&Date.parse(b.start)<w.end);
  const problems=!batches.length||batches.some(b=>Object.values(b.results).some(r=>r.state!=='success'));
- const status={windowStart:data.window.start,windowEnd:data.window.end,schedule:'6시간 분산 수집 · 한국 영업일 07:40 공개',updated:new Date().toISOString(),fetched:data.articles.length,overseasFetched:data.articles.filter(a=>a.marketHint==='overseas').length,source:'누적 Google 뉴스 RSS · 필요 시 네이버 보완',partial:problems,errors:problems?['일부 피드 실패 또는 미완료']:[],...(problems?{coverageNote:'일부 피드가 지연돼 확보된 기사와 대체 수집 결과를 공개했습니다. 수집 현황에서 확인할 수 있습니다.'}:{})};
+ const status={windowStart:data.window.start,windowEnd:data.window.end,schedule:'4시간 분산 수집 · 한국 영업일 07:40 공개',updated:new Date().toISOString(),fetched:data.articles.length,overseasFetched:data.articles.filter(a=>a.marketHint==='overseas').length,source:'누적 Google 뉴스 RSS · 필요 시 네이버 보완',partial:problems,errors:problems?['일부 피드 실패 또는 미완료']:[],...(problems?{coverageNote:'일부 피드가 지연돼 확보된 기사와 대체 수집 결과를 공개했습니다. 수집 현황에서 확인할 수 있습니다.'}:{})};
  // Public status is the commit point. Staging never changes the public archive or date selector.
  await db().put('status.json',JSON.stringify(status),jsonOptions);await db().delete('pipeline/publication-error.json');return {published:true,added:data.articles.length-old.articles.filter(a=>Date.parse(a.published)>=w.start&&Date.parse(a.published)<w.end).length,articles:data.articles.length,window:data.window};
 }
 export async function collectionHealth(){const allObjects: R2Object[]=[];let cursor:string|undefined;do{const page=await db().list({prefix:'pipeline/batches/',cursor});allObjects.push(...page.objects);cursor=page.truncated?page.cursor:undefined}while(cursor);const objects={objects:allObjects.sort((a,b)=>b.uploaded.getTime()-a.uploaded.getTime()).slice(0,24)};const batches=(await Promise.all(objects.objects.map(o=>read<Batch>(o.key)))).filter((b):b is Batch=>!!b).sort((a,b)=>b.started.localeCompare(a.started)).slice(0,20);
  const pendingKeys=await db().list({prefix:'staging/days/'});const pending=(await Promise.all(pendingKeys.objects.map(async o=>{const p=await db().get(o.key);return p?await p.json<Article[]>():[]}))).flat();const visible=await read<{windowStart:string;windowEnd:string;updated:string}>('status.json');
- const dayWindow=collectionWindow();return {cadence:'매일 01:10·07:10·13:10·19:10 누적 수집, 영업일 07:40 공개 작업',publicStatus:visible,pending:pending.filter(a=>!visible||Date.parse(a.published)>=Date.parse(visible.windowEnd)).length,publicationError:await read('pipeline/publication-error.json'),batches,window:{start:new Date(dayWindow.start).toISOString(),end:new Date(dayWindow.end).toISOString()},rawArticles:pending.sort((a,b)=>b.published.localeCompare(a.published)).slice(0,80).map(({id,title,url,source,published})=>({id,title,url,source,published})),note:'검색 RSS는 전체 기사 전수조사가 아닙니다. 100건 응답·미완료·실패는 아래 회차에 표시합니다.'};
+ const dayWindow=collectionWindow();return {cadence:'매일 01:10·05:10·09:10·13:10·17:10·21:10 누적 수집, 영업일 07:40 공개 작업',publicStatus:visible,pending:pending.filter(a=>!visible||Date.parse(a.published)>=Date.parse(visible.windowEnd)).length,publicationError:await read('pipeline/publication-error.json'),batches,window:{start:new Date(dayWindow.start).toISOString(),end:new Date(dayWindow.end).toISOString()},rawArticles:pending.sort((a,b)=>b.published.localeCompare(a.published)).slice(0,80).map(({id,title,url,source,published})=>({id,title,url,source,published})),note:'검색 RSS는 전체 기사 전수조사가 아닙니다. 100건 응답·미완료·실패는 아래 회차에 표시합니다.'};
 }

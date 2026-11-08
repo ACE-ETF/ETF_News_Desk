@@ -68,7 +68,7 @@ try:
    # A one-time recovery may ingest already-fetched RSS without re-requesting Google.
    if i==0 and config.get('cachedRss'):
     with open(config['cachedRss']) as f:xml=f.read(2000001)
-   else:xml=external('https://news.google.com/rss/search?'+urllib.parse.urlencode(query))
+   else:xml=external('https://news.google.com/rss/search?'+urllib.parse.urlencode({k:query[k] for k in ('q','hl','gl','ceid')}))
   except urllib.error.HTTPError as e:
    api('failure',batchId=batch['id'],index=i,code=e.code);log(feed=i,httpStatus=e.code);failed=True
    if e.code in [403,429,502,503]:break
