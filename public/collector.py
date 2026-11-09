@@ -28,33 +28,46 @@ class Meta(HTMLParser):
   if t=='meta':self.meta[a.get('property') or a.get('name')]=a.get('content')
   if a.get('data-date-time'):self.stamps.append(a['data-date-time'])
 def fallback(batch):
- lo=datetime.datetime.fromisoformat(batch['start']);hi=datetime.datetime.fromisoformat(batch['end']);kst=datetime.timezone(datetime.timedelta(hours=9));urls=[];items=[]
- for q in ['ETF -비트코인 -이더리움 -가상자산 -암호화폐','ACE ETF','상장지수펀드']:
+ reservation=api('reserveFallback',batchId=batch['id'])
+ if not reservation.get('reserved'):return 0
+ lo=datetime.datetime.fromisoformat(batch['start']);hi=datetime.datetime.fromisoformat(batch['end']);kst=datetime.timezone(datetime.timedelta(hours=9));urls=[];items=[];code=0;blocked=False
+ queries=['ETF -비트코인 -이더리움 -가상자산 -암호화폐','미국 ETF'] if mode=='stage' else ['ETF -비트코인 -이더리움 -가상자산 -암호화폐','ACE ETF','상장지수펀드']
+ limit=min(reservation['maxItems'],20 if mode=='stage' else 30)
+ for q in queries:
   time.sleep(5)
   params={'where':'news','query':q,'sort':'1','pd':'3','ds':lo.astimezone(kst).strftime('%Y.%m.%d'),'de':hi.astimezone(kst).strftime('%Y.%m.%d')}
   try:
-   s=external('https://search.naver.com/search.naver?'+urllib.parse.urlencode(params));p=Links();p.feed(s);urls+=p.urls
+   s=external('https://search.naver.com/search.naver?'+urllib.parse.urlencode(params));p=Links();p.feed(s)
+   # Keep room for both the domestic and US-listed ETF search results.
+   urls+=list(dict.fromkeys(p.urls))[:10]
   except urllib.error.HTTPError as e:
-   log(fallbackSearchStatus=e.code)
-   if e.code in [403,429,503]:break
-  except Exception as e:log(fallbackSearchError=type(e).__name__)
- for url in list(dict.fromkeys(urls))[:30]:
-  time.sleep(3)
-  try:
-   s=external(url,700000);p=Meta();p.feed(s);title=p.meta.get('og:title') or '';source=(p.meta.get('og:article:author') or '').split(' | ')[0]
-   stamp=p.stamps[0] if p.stamps else None
-   if not stamp or not source or not re.search(r'ETF|상장지수펀드',title,re.I):continue
-   published=datetime.datetime.fromisoformat(stamp).replace(tzinfo=kst)
-   if not lo<=published<hi:continue
-   items.append({'title':title,'url':url,'source':source,'published':published.isoformat()})
-  except urllib.error.HTTPError as e:
-   log(fallbackArticleStatus=e.code)
-   if e.code in [403,429,503]:break
-  except Exception as e:log(fallbackArticleError=type(e).__name__)
+   log(fallbackSearchStatus=e.code);code=e.code
+   if e.code in [403,429,502,503]:blocked=True;break
+  except Exception as e:
+   log(fallbackSearchError=type(e).__name__);code=-1;blocked=True;break
+ if not blocked:
+  for url in list(dict.fromkeys(urls))[:limit]:
+   time.sleep(5)
+   try:
+    s=external(url,700000);p=Meta();p.feed(s);title=p.meta.get('og:title') or '';source=(p.meta.get('og:article:author') or '').split(' | ')[0]
+    stamp=p.stamps[0] if p.stamps else None
+    if not stamp or not source or not re.search(r'ETF|상장지수펀드',title,re.I):continue
+    published=datetime.datetime.fromisoformat(stamp)
+    if published.tzinfo is None:published=published.replace(tzinfo=kst)
+    if not lo<=published<hi:continue
+    items.append({'title':title,'url':url,'source':source,'published':published.isoformat()})
+   except urllib.error.HTTPError as e:
+    log(fallbackArticleStatus=e.code);code=e.code
+    if e.code in [403,429,502,503]:break
+   except Exception as e:
+    log(fallbackArticleError=type(e).__name__);code=-1;break
+ saved=0
  for i in range(0,len(items),10):
-  if i:time.sleep(3)
-  log(fallbackSaved=api('fallback',batchId=batch['id'],items=items[i:i+10]).get('saved',0))
- return len(items)
+  if i:time.sleep(5)
+  n=api('fallback',batchId=batch['id'],items=items[i:i+10]).get('saved',0);saved+=n;log(fallbackSaved=n)
+ api('finishFallback',batchId=batch['id'],code=code)
+ return saved
+
 try:
  started=api('start',mode=mode)
  if started.get('skipped'):
@@ -80,7 +93,7 @@ try:
   except urllib.error.HTTPError as e:
    if e.code in [401,403]:raise
    api('failure',batchId=batch['id'],index=i,code=0);log(feed=i,invalidRssOrSaveFailure=e.code);failed=True;break
- if mode=='release' and (failed or accepted==0):fallback(batch)
+ if failed or accepted==0:fallback(batch)
  done=api('finish',batchId=batch['id']);log(mode=mode,staged=done['saved'],batchId=batch['id'],publicChanged=False)
 except urllib.error.HTTPError as e:log(siteHttpStatus=e.code);sys.exit(1)
 except Exception as e:log(error=type(e).__name__);sys.exit(1)

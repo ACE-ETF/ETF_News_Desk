@@ -6,7 +6,7 @@ const HOUR=3600000;
 const db=()=>(env as unknown as {BUCKET:R2Bucket}).BUCKET;
 const jsonOptions={httpMetadata:{contentType:'application/json'}};
 const read=async<T>(key:string):Promise<T|null>=>{const o=await db().get(key);return o?o.json<T>():null};
-export type Batch={id:string;mode:'stage'|'release';started:string;finished?:string;start:string;end:string;queries:{q:string;hl:string;gl:string;ceid:string;start?:string;end?:string;recoveryTruncated?:boolean}[];results:Record<string,{state:'started'|'success'|'failed';received?:number;accepted?:number;saturated?:boolean;rejected?:FeedRejections;code?:number;reason?:string}>;fallbackCount:number;coverageGap?:boolean};
+export type Batch={id:string;mode:'stage'|'release';started:string;finished?:string;start:string;end:string;queries:{q:string;hl:string;gl:string;ceid:string;start?:string;end?:string;recoveryTruncated?:boolean}[];results:Record<string,{state:'started'|'success'|'failed';received?:number;accepted?:number;saturated?:boolean;rejected?:FeedRejections;code?:number;reason?:string}>;fallbackCount:number;fallback?:{state:'started'|'success'|'failed';started:string;finished?:string;code?:number};coverageGap?:boolean};
 type FeedRejections = { invalidDate: number; outsideWindow: number; invalidMetadata: number; unrelatedTitle: number };
 
 export function plan(now=Date.now(),mode:'stage'|'release'='stage'){
@@ -103,9 +103,28 @@ export async function receiveFeed(id:string,index:number,xml:string){
  await updateBatch(id,x=>({...x,results:{...x.results,[index]:{state:'success',received:p.received,accepted:articles.length,saturated:p.saturated,rejected:p.rejected}}}));return {saved:articles.length,received:p.received,saturated:p.saturated,rejected:p.rejected};
 }
 export async function queryFailed(id:string,index:number,code:number){return updateBatch(id,b=>{if(b.finished||b.results[index]?.state!=='started')throw new Error('예약되지 않은 질의');return {...b,results:{...b.results,[index]:{state:'failed',code,reason:code?'피드 응답 '+code:'연결 실패'}}}})}
+export async function reserveFallback(id:string){
+ const b=await read<Batch>('pipeline/batches/'+id+'.json');
+ if(!b||b.finished||b.fallback)return {skipped:true};
+ const results=Object.values(b.results);
+ if(!results.length||results.some(r=>r.state==='started'))return {skipped:true};
+ const failed=results.some(r=>r.state==='failed');
+ const empty=results.length===b.queries.length&&results.every(r=>r.state==='success'&&!r.accepted);
+ if(!failed&&!empty)return {skipped:true};
+ const ok=await db().put('pipeline/requests/'+id+'/naver.json',JSON.stringify({at:new Date().toISOString()}),{...jsonOptions,onlyIf:{etagDoesNotMatch:'*'}});
+ if(!ok)return {skipped:true};
+ await updateBatch(id,b=>({...b,fallback:{state:'started',started:new Date().toISOString()}}));
+ return {reserved:true,maxItems:b.mode==='stage'?20:30};
+}
+export async function finishFallback(id:string,code:number){return updateBatch(id,b=>{
+ if(b.finished||b.fallback?.state!=='started')throw new Error('예약되지 않은 보완');
+ return {...b,fallback:{...b.fallback,state:code?'failed':'success',finished:new Date().toISOString(),...(code?{code}:{})}};
+})}
 export async function fallbackImport(id:string,items:unknown){
  const b=await read<Batch>('pipeline/batches/'+id+'.json');if(!b||b.finished)throw new Error('유효하지 않은 회차');
+ if(b.fallback?.state!=='started')throw new Error('예약되지 않은 보완');
  if(!validNaverItems(items,{start:Date.parse(b.start),end:Date.parse(b.end)}))throw new Error('보완 기사 URL·정확한 발행 시각 확인 필요');
+ if(b.fallbackCount+items.length>(b.mode==='stage'?20:30))throw new Error('회차별 보완 상한 초과');
  const rows=await identify(items.map(a=>({...a,url:new URL(a.url).hostname==='n.news.naver.com'?new URL(a.url).origin+new URL(a.url).pathname:a.url,date:kdate(Date.parse(a.published)),published:new Date(a.published).toISOString(),category:category(a.title),brands:articleBrands({...a,id:'',brands:[]}),language:'ko' as const})));
  await saveStaged(rows);await updateBatch(id,b=>({...b,fallbackCount:b.fallbackCount+rows.length}));return {saved:rows.length};
 }
