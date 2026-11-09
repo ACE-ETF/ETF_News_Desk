@@ -13,7 +13,7 @@ assert(!(await news.getNews()).articles.some(a=>a.title==='ACE 신규 ETF 출시
 assert((await pipeline.reserveQuery(id,1)).reserved);await pipeline.queryFailed(id,1,503);assert((await pipeline.reserveQuery(id,2)).skipped);await pipeline.finishBatch(id);
 const health=await pipeline.collectionHealth();assert.equal(health.batches[0].results[1].code,503);assert.equal(health.rawArticles.length,1);assert.equal(health.batches[0].results[0].received,2);
 assert.equal(health.batches[0].results[0].rejected.outsideWindow,1);
-const splitPlans=Array.from({length:6},(_,i)=>pipeline.plan(Date.now()+i*4*3600000));
+const splitPlans=Array.from({length:6},(_,i)=>pipeline.plan(Date.now()+i*6*3600000));
 assert.deepEqual(splitPlans.map(p=>p.queries.length).sort(),[3,3,4,4,4,5]);
 assert(splitPlans.some(p=>p.queries.some(q=>q.q.includes("(equity OR sector)"))));
 assert(splitPlans.some(p=>p.queries.some(q=>q.q.includes("-신규상장"))));
@@ -27,23 +27,23 @@ Date.now=()=>Date.parse('2026-11-08T01:10:00+09:00');
 let first=await pipeline.startBatch('stage');
 for(let i=0;i<first.batch.queries.length;i++){await pipeline.reserveQuery(first.batch.id,i);await pipeline.receiveFeed(first.batch.id,i,'<rss><channel></channel></rss>');}
 await pipeline.finishBatch(first.batch.id);
-Date.now=()=>Date.parse('2026-11-08T05:10:00+09:00');
+Date.now=()=>Date.parse('2026-11-08T07:10:00+09:00');
 let next=await pipeline.startBatch('stage');
 assert.equal(next.batch.queries[0].start,'2026-11-07T15:10:00.000Z');
-assert(next.batch.queries[0].q.endsWith('when:5h'));
+assert(next.batch.queries[0].q.endsWith('when:7h'));
 await pipeline.reserveQuery(next.batch.id,0);await pipeline.receiveFeed(next.batch.id,0,'<rss><channel></channel></rss>');
 await pipeline.reserveQuery(next.batch.id,1);await pipeline.queryFailed(next.batch.id,1,503);
 await pipeline.finishBatch(next.batch.id);
-Date.now=()=>Date.parse('2026-11-08T09:10:00+09:00');
+Date.now=()=>Date.parse('2026-11-08T13:10:00+09:00');
 let third=await pipeline.startBatch('stage');
-assert.equal(third.batch.queries[0].start,'2026-11-07T19:10:00.000Z');
-assert.equal(third.batch.queries[0].q.endsWith('when:5h'),true);
+assert.equal(third.batch.queries[0].start,'2026-11-07T21:10:00.000Z');
+assert.equal(third.batch.queries[0].q.endsWith('when:7h'),true);
 assert(third.batch.queries.some(q=>Date.parse(q.start)<Date.parse(third.batch.queries[0].start)));
 assert.equal(new Set([first.batch.id,next.batch.id,third.batch.id]).size,3);
 assert.equal((await pipeline.startBatch('stage')).skipped,true);
 for(let i=0;i<third.batch.queries.length;i++){await pipeline.reserveQuery(third.batch.id,i);await pipeline.receiveFeed(third.batch.id,i,'<rss><channel></channel></rss>');}
 await pipeline.finishBatch(third.batch.id);
-Date.now=()=>Date.parse('2026-11-08T13:10:00+09:00');
+Date.now=()=>Date.parse('2026-11-08T19:10:00+09:00');
 const fourth=await pipeline.startBatch('stage');
 assert.equal(fourth.batch.queries[1].start,new Date(Math.max(Date.parse(next.batch.queries[1].start),Date.now()-72*3600000)).toISOString(),'failed rotating query must not inherit a newer unrelated global success');
 // Naver fallback is separately claimed once and never advances failed Google queries.
@@ -63,7 +63,7 @@ await pipeline.finishBatch(fourth.batch.id);
 const fallbackBatch=(await pipeline.collectionHealth()).batches.find(b=>b.id===fourth.batch.id);
 assert.equal(fallbackBatch.fallback.state,'failed');assert.equal(fallbackBatch.fallback.code,429);assert.equal(fallbackBatch.fallbackCount,11);
 assert((await pipeline.reserveFallback(fourth.batch.id)).skipped);
-Date.now=()=>Date.parse('2026-11-08T17:10:00+09:00');
+Date.now=()=>Date.parse('2026-11-09T01:10:00+09:00');
 const afterFallback=await pipeline.startBatch('stage');
 assert.equal(afterFallback.batch.queries[0].start,fourth.batch.queries[0].start,'Naver does not close a failed Google interval');
 for(let i=0;i<afterFallback.batch.queries.length;i++){await pipeline.reserveQuery(afterFallback.batch.id,i);await pipeline.receiveFeed(afterFallback.batch.id,i,'<rss><channel></channel></rss>');}
@@ -73,5 +73,5 @@ console.log('PASS: fallback claim lock; 20-item stage cap; unreserved/finished r
 Date.now=()=>Date.parse('2026-11-13T13:10:00+09:00');
 const recovery=await pipeline.startBatch('stage');
 assert(recovery.batch.coverageGap);assert(recovery.batch.queries.every(q=>Date.parse(q.start)>=Date.now()-72*3600000));
-console.log('PASS: four-hour slots; query-specific successful/zero-result progress; 1h overlap; independent failure recovery; duplicate lock');
+console.log('PASS: six-hour slots; query-specific successful/zero-result progress; 1h overlap; independent failure recovery; duplicate lock');
 Date.now=realNow;console.log('PASS: bounded rotating queries; durable single attempt; no unreserved/repeated ingestion; exact source times; staging invisible to public/archive; failure circuit; health/raw links; publication/zero-data preservation; weekend accumulation');

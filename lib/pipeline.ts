@@ -10,10 +10,10 @@ export type Batch={id:string;mode:'stage'|'release';started:string;finished?:str
 type FeedRejections = { invalidDate: number; outsideWindow: number; invalidMetadata: number; unrelatedTitle: number };
 
 export function plan(now=Date.now(),mode:'stage'|'release'='stage'){
- const window=collectionWindow(now);const slot=Math.floor(now/(4*HOUR));
+ const window=collectionWindow(now);const slot=Math.floor(now/(6*HOUR));
  const end=mode==='release'?window.end:now;
- // Four-hour cadence plus one hour for delayed indexing; missed windows are bounded below.
- const start=end-5*HOUR;
+ // Six-hour cadence plus one hour for delayed indexing; missed windows are bounded below.
+ const start=end-7*HOUR;
  const bases=collectionQueries({start,end});
  const chosen=mode==='release'?[bases[0],bases[3+slot%3]]:[bases[0],bases[1+slot%2],bases[3+slot%3]];
  const queries = chosen.flatMap(query => {
@@ -37,7 +37,7 @@ export function plan(now=Date.now(),mode:'stage'|'release'='stage'){
    q: q + (query.gl === 'KR' && base === 'ETF' ? ' -비트코인 -이더리움 -가상자산 -암호화폐' : '') + ' when:1d',
   }));
  });
- return {id:mode==='release'?'release-'+new Date(window.end).toISOString():'stage-'+slot,mode,start:new Date(start).toISOString(),end:new Date(end).toISOString(),queries,publicationWindow:{start:new Date(window.start).toISOString(),end:new Date(window.end).toISOString()},businessDay:isBusinessDay(now),cadence:'매일 01:10·05:10·09:10·13:10·17:10·21:10 수집 / 한국 영업일 07:40 공개'};
+ return {id:mode==='release'?'release-'+new Date(window.end).toISOString():'stage-'+slot,mode,start:new Date(start).toISOString(),end:new Date(end).toISOString(),queries,publicationWindow:{start:new Date(window.start).toISOString(),end:new Date(window.end).toISOString()},businessDay:isBusinessDay(now),cadence:'매일 01:10·07:10·13:10·19:10 수집 / 한국 영업일 07:40 공개'};
 }
 async function queryProgressKey(q:Batch['queries'][number]){
  const identity=[q.q.replace(/ when:\d+[hd]$/,''),q.hl,q.gl,q.ceid].join('|');
@@ -146,11 +146,11 @@ export async function publishStaged(){
  const old=await getNews();for(const day of new Set(data.articles.map(a=>a.date)))await saveDay(day,data.articles.filter(a=>a.date===day));
  const health=await collectionHealth();const batches=health.batches.filter(b=>Date.parse(b.end)>w.start&&Date.parse(b.start)<w.end);
  const problems=!batches.length||batches.some(b=>Object.values(b.results).some(r=>r.state!=='success'));
- const status={windowStart:data.window.start,windowEnd:data.window.end,schedule:'4시간 분산 수집 · 한국 영업일 07:40 공개',updated:new Date().toISOString(),fetched:data.articles.length,overseasFetched:data.articles.filter(a=>a.marketHint==='overseas').length,source:'누적 Google 뉴스 RSS · 필요 시 네이버 보완',partial:problems,errors:problems?['일부 피드 실패 또는 미완료']:[],...(problems?{coverageNote:'일부 피드가 지연돼 확보된 기사와 대체 수집 결과를 공개했습니다. 수집 현황에서 확인할 수 있습니다.'}:{})};
+ const status={windowStart:data.window.start,windowEnd:data.window.end,schedule:'6시간 분산 수집 · 한국 영업일 07:40 공개',updated:new Date().toISOString(),fetched:data.articles.length,overseasFetched:data.articles.filter(a=>a.marketHint==='overseas').length,source:'누적 Google 뉴스 RSS · 필요 시 네이버 보완',partial:problems,errors:problems?['일부 피드 실패 또는 미완료']:[],...(problems?{coverageNote:'일부 피드가 지연돼 확보된 기사와 대체 수집 결과를 공개했습니다. 수집 현황에서 확인할 수 있습니다.'}:{})};
  // Public status is the commit point. Staging never changes the public archive or date selector.
  await db().put('status.json',JSON.stringify(status),jsonOptions);await db().delete('pipeline/publication-error.json');return {published:true,added:data.articles.length-old.articles.filter(a=>Date.parse(a.published)>=w.start&&Date.parse(a.published)<w.end).length,articles:data.articles.length,window:data.window};
 }
 export async function collectionHealth(){const allObjects: R2Object[]=[];let cursor:string|undefined;do{const page=await db().list({prefix:'pipeline/batches/',cursor});allObjects.push(...page.objects);cursor=page.truncated?page.cursor:undefined}while(cursor);const objects={objects:allObjects.sort((a,b)=>b.uploaded.getTime()-a.uploaded.getTime()).slice(0,24)};const batches=(await Promise.all(objects.objects.map(o=>read<Batch>(o.key)))).filter((b):b is Batch=>!!b).sort((a,b)=>b.started.localeCompare(a.started)).slice(0,20);
  const pendingKeys=await db().list({prefix:'staging/days/'});const pending=(await Promise.all(pendingKeys.objects.map(async o=>{const p=await db().get(o.key);return p?await p.json<Article[]>():[]}))).flat();const visible=await read<{windowStart:string;windowEnd:string;updated:string}>('status.json');
- const dayWindow=collectionWindow();return {cadence:'매일 01:10·05:10·09:10·13:10·17:10·21:10 누적 수집, 영업일 07:40 공개 작업',publicStatus:visible,pending:pending.filter(a=>!visible||Date.parse(a.published)>=Date.parse(visible.windowEnd)).length,publicationError:await read('pipeline/publication-error.json'),batches,window:{start:new Date(dayWindow.start).toISOString(),end:new Date(dayWindow.end).toISOString()},rawArticles:pending.sort((a,b)=>b.published.localeCompare(a.published)).slice(0,80).map(({id,title,url,source,published})=>({id,title,url,source,published})),note:'검색 RSS는 전체 기사 전수조사가 아닙니다. 100건 응답·미완료·실패는 아래 회차에 표시합니다.'};
+ const dayWindow=collectionWindow();return {cadence:'매일 01:10·07:10·13:10·19:10 누적 수집, 영업일 07:40 공개 작업',publicStatus:visible,pending:pending.filter(a=>!visible||Date.parse(a.published)>=Date.parse(visible.windowEnd)).length,publicationError:await read('pipeline/publication-error.json'),batches,window:{start:new Date(dayWindow.start).toISOString(),end:new Date(dayWindow.end).toISOString()},rawArticles:pending.sort((a,b)=>b.published.localeCompare(a.published)).slice(0,80).map(({id,title,url,source,published})=>({id,title,url,source,published})),note:'검색 RSS는 전체 기사 전수조사가 아닙니다. 100건 응답·미완료·실패는 아래 회차에 표시합니다.'};
 }
