@@ -83,35 +83,36 @@ try:
  started=api('start',mode=mode)
  if started.get('skipped'):
   log(skipped=True,reason=started.get('reason'));sys.exit(0)
- batch=started['batch'];accepted=0;failed=False;blocked_providers=set()
+ batch=started['batch'];accepted=0;failed=False;search_failed=False;blocked_providers=set()
  for i,query in enumerate(batch['queries']):
   provider=query.get('provider','google-rss')
-  if provider in blocked_providers:continue
+  provider_key=provider+':'+query.get('feedId','') if provider=='direct-rss' else provider
+  if provider_key in blocked_providers:continue
   if i:time.sleep(5)
   reservation=api('reserve',batchId=batch['id'],index=i)
   if reservation.get('skipped'):continue
   if provider=='naver-api':
    result=api('naverFeed',batchId=batch['id'],index=i);accepted+=result.get('saved',0);log(feed=i,provider=provider,**result)
    if result.get('failed'):
-    failed=True;blocked_providers.add(provider)
+    failed=True;blocked_providers.add(provider_key)
    continue
   try:
    # A one-time recovery may ingest already-fetched RSS without re-requesting Google.
-   if i==0 and config.get('cachedRss'):
+   if provider=='google-rss' and i==0 and config.get('cachedRss'):
     with open(config['cachedRss']) as f:xml=f.read(2000001)
-   else:xml=external('https://news.google.com/rss/search?'+urllib.parse.urlencode({k:query[k] for k in ('q','hl','gl','ceid')}))
+   else:xml=external(query['feedUrl'] if provider=='direct-rss' else 'https://news.google.com/rss/search?'+urllib.parse.urlencode({k:query[k] for k in ('q','hl','gl','ceid')}))
   except urllib.error.HTTPError as e:
-   diagnostics=http_diagnostics(e);api('failure',batchId=batch['id'],index=i,code=e.code,diagnostics=diagnostics);log(feed=i,httpStatus=e.code,diagnostics=diagnostics);failed=True
-   if e.code in [403,429,502,503]:blocked_providers.add(provider)
+   diagnostics=http_diagnostics(e);api('failure',batchId=batch['id'],index=i,code=e.code,diagnostics=diagnostics);log(feed=i,httpStatus=e.code,diagnostics=diagnostics);failed=True;search_failed=search_failed or provider=='google-rss'
+   if e.code in [403,429,502,503]:blocked_providers.add(provider_key)
    continue
   except Exception as e:
-   api('failure',batchId=batch['id'],index=i,code=0,diagnostics={'errorType':type(e).__name__});log(feed=i,error=type(e).__name__);failed=True;blocked_providers.add(provider);continue
+   api('failure',batchId=batch['id'],index=i,code=0,diagnostics={'errorType':type(e).__name__});log(feed=i,error=type(e).__name__);failed=True;search_failed=search_failed or provider=='google-rss';blocked_providers.add(provider_key);continue
   try:
    result=api('feed',batchId=batch['id'],index=i,xml=xml);accepted+=result['saved'];log(feed=i,**result)
   except urllib.error.HTTPError as e:
    if e.code in [401,403]:raise
    api('failure',batchId=batch['id'],index=i,code=0);log(feed=i,invalidRssOrSaveFailure=e.code);failed=True;break
- if (failed or accepted==0) and not any(q.get('provider')=='naver-api' for q in batch['queries']):fallback(batch)
+ if (search_failed or accepted==0) and not any(q.get('provider')=='naver-api' for q in batch['queries']):fallback(batch)
  done=api('finish',batchId=batch['id']);log(mode=mode,staged=done['saved'],batchId=batch['id'],publicChanged=False)
 except urllib.error.HTTPError as e:log(siteHttpStatus=e.code);sys.exit(1)
 except Exception as e:log(error=type(e).__name__);sys.exit(1)

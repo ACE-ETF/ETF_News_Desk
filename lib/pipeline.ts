@@ -3,11 +3,12 @@ import {collectionQueries,collectionWindow,calendarDates,isBusinessDay,kdate,cat
 import {validNaverItems} from './naver-import';
 import {articleBrands} from './verified-brands';
 import {naverConfigured,readNaverNews,parseNaverNews} from './naver-api';
+import {directFeed,directQueries,directFeedsEnabled,providerKey} from './direct-feeds';
 const HOUR=3600000;
 const db=()=>(env as unknown as {BUCKET:R2Bucket}).BUCKET;
 const jsonOptions={httpMetadata:{contentType:'application/json'}};
 const read=async<T>(key:string):Promise<T|null>=>{const o=await db().get(key);return o?o.json<T>():null};
-export type Batch={id:string;mode:'stage'|'release';started:string;finished?:string;start:string;end:string;queries:{provider?:'google-rss'|'naver-api';q:string;hl:string;gl:string;ceid:string;start?:string;end?:string;recoveryTruncated?:boolean}[];results:Record<string,{state:'started'|'success'|'failed';received?:number;accepted?:number;saturated?:boolean;rejected?:FeedRejections;code?:number;reason?:string;diagnostics?:Record<string,string>}>;fallbackCount:number;fallback?:{state:'started'|'success'|'failed';started:string;finished?:string;code?:number;searchMatches?:number;articleChecked?:number;metadataRejected?:number};coverageGap?:boolean};
+export type Batch={id:string;mode:'stage'|'release';started:string;finished?:string;start:string;end:string;queries:{provider?:'google-rss'|'naver-api'|'direct-rss';feedId?:string;feedUrl?:string;q:string;hl:string;gl:string;ceid:string;start?:string;end?:string;recoveryTruncated?:boolean}[];results:Record<string,{state:'started'|'success'|'failed';received?:number;accepted?:number;saturated?:boolean;rejected?:FeedRejections;code?:number;reason?:string;diagnostics?:Record<string,string>;feedWindowLimited?:boolean;feedOldest?:string;feedNewest?:string}>;fallbackCount:number;fallback?:{state:'started'|'success'|'failed';started:string;finished?:string;code?:number;searchMatches?:number;articleChecked?:number;metadataRejected?:number};coverageGap?:boolean};
 type FeedRejections = { invalidDate: number; outsideWindow: number; invalidMetadata: number; unrelatedTitle: number };
 
 export function plan(now=Date.now(),mode:'stage'|'release'='stage'){
@@ -16,17 +17,18 @@ export function plan(now=Date.now(),mode:'stage'|'release'='stage'){
  // Six-hour cadence plus one hour for delayed indexing; missed windows are bounded below.
  const start=end-7*HOUR;
  const bases=collectionQueries({start,end});
- const chosen=mode==='release'?[bases[0],bases[3+slot%3]]:[bases[0],bases[1+slot%2],bases[3+slot%3]];
- const queries = chosen.flatMap(query => {
+ const direct=directFeedsEnabled();
+ const chosen=direct?[mode==='release'?bases[0]:bases[slot%2===0?0:1],bases[3+slot%3]]:mode==='release'?[bases[0],bases[3+slot%3]]:[bases[0],bases[1+slot%2],bases[3+slot%3]];
+ const searchQueries = chosen.flatMap(query => {
   const base = query.q.replace(/ when:2d$| after:.*$/, '');
   let terms = [base];
-  if (mode === 'stage' && base === '상장지수펀드') {
+  if (!direct && mode === 'stage' && base === '상장지수펀드') {
    terms = [
     base + ' (신규상장 OR 출시 OR 상품 OR 제도 OR 규제)',
     base + ' -신규상장 -출시 -상품 -제도 -규제',
    ];
   }
-  if (mode === 'stage' && base.includes('(equity OR sector OR dividend OR launch OR fees OR regulation)')) {
+  if (!direct && mode === 'stage' && base.includes('(equity OR sector OR dividend OR launch OR fees OR regulation)')) {
    const topic = '(equity OR sector OR dividend OR launch OR fees OR regulation)';
    terms = [
     base.replace(topic, '(equity OR sector)'),
@@ -38,10 +40,11 @@ export function plan(now=Date.now(),mode:'stage'|'release'='stage'){
    q: q + (query.gl === 'KR' && base === 'ETF' ? ' -비트코인 -이더리움 -가상자산 -암호화폐' : '') + ' when:1d',
   }));
  });
+ const queries=direct?[...directQueries(),...searchQueries]:searchQueries;
  return {id:mode==='release'?'release-'+new Date(window.end).toISOString():'stage-'+slot,mode,start:new Date(start).toISOString(),end:new Date(end).toISOString(),queries,publicationWindow:{start:new Date(window.start).toISOString(),end:new Date(window.end).toISOString()},businessDay:isBusinessDay(now),cadence:'매일 01:10·07:10·13:10·19:10 수집 / 한국 영업일 07:40 공개'};
 }
 async function queryProgressKey(q:Batch['queries'][number]){
- const identity=[...(q.provider==='naver-api'?['naver-api']:[]),q.q.replace(/ when:\d+[hd]$/,''),q.hl,q.gl,q.ceid].join('|');
+ const identity=[...(q.provider==='naver-api'?['naver-api']:q.provider==='direct-rss'?['direct-rss',q.feedId||'']:[]),q.q.replace(/ when:\d+[hd]$/,''),q.hl,q.gl,q.ceid].join('|');
  const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(identity));
  return 'pipeline/query-success/'+Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,'0')).join('')+'.json';
 }
@@ -68,25 +71,29 @@ export async function startBatch(mode:'stage'|'release'){
 }
 const decode=(s:string)=>s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&apos;|&#39;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>');
 const tag=(s:string,n:string)=>decode(s.match(new RegExp('<'+n+'(?: [^>]*)?>([\\s\\S]*?)</'+n+'>'))?.[1]||'');
+function validDirectArticleUrl(raw:string,hosts:readonly string[]){try{const u=new URL(raw);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&hosts.includes(u.hostname)}catch{return false}}
 export function parseFeed(xml:string,query:Batch['queries'][number],window:{start:string;end:string}){
  if(xml.length>2000000||!/<rss[\s>]/i.test(xml)||/<!ENTITY/i.test(xml))throw new Error('RSS 형식 오류');
  const received=[...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)];
  const rejected: FeedRejections = { invalidDate: 0, outsideWindow: 0, invalidMetadata: 0, unrelatedTitle: 0 };
  const start = Date.parse(window.start);
  const end = Date.parse(window.end);
- const rows=received.flatMap(m=>{const x=m[1],source=tag(x,'source'),raw=tag(x,'title'),title=raw.endsWith(' - '+source)?raw.slice(0,-source.length-3):raw;const published=Date.parse(tag(x,'pubDate')),url=tag(x,'link');
+ const feed=query.provider==='direct-rss'?directFeed(query.feedId):undefined;
+ if(query.provider==='direct-rss'&&(!feed||query.feedUrl!==feed.url))throw new Error('등록되지 않은 직접 피드');
+ const feedTimes=received.map(m=>Date.parse(tag(m[1],'pubDate'))).filter(Number.isFinite);
+ const rows=received.flatMap(m=>{const x=m[1],source=feed?.name||tag(x,'source'),raw=tag(x,'title').replace(/<[^>]+>/g,''),title=raw.endsWith(' - '+source)?raw.slice(0,-source.length-3):raw;const published=Date.parse(tag(x,'pubDate')),url=tag(x,'link');
   if (!Number.isFinite(published)) { rejected.invalidDate++; return []; }
   if (published < start || published >= end) { rejected.outsideWindow++; return []; }
-  if (!/^https:\/\/news\.google\.com\/(?:rss\/)?articles\//.test(url) || !title || title.length > 400) {
+  if (!(feed?validDirectArticleUrl(url,feed.articleHosts):/^https:\/\/news\.google\.com\/(?:rss\/)?articles\//.test(url)) || !title || title.length > 400) {
    rejected.invalidMetadata++;
    return [];
   }
-  if (!/\bETFs?\b|exchange[ -]traded funds?|상장지수펀드/i.test(title)) {
+  if (!/(?:\bETFs?\b|ETF(?=[^A-Za-z]|$)|exchange[ -]traded funds?|상장지수펀드)/i.test(title)) {
    rejected.unrelatedTitle++;
    return [];
   }
-  const a={title,url,source,published:new Date(published).toISOString(),date:kdate(published),category:category(title),brands:[] as string[],language:query.gl==='US'?'en' as const:'ko' as const,...(query.gl==='US'?{marketHint:'overseas' as const}:{})};a.brands=articleBrands({...a,id:''});if(query.q.startsWith('(ACE OR'))a.brands=[...new Set([...a.brands,'ACE'])];return [a];
- });return {rows,received:received.length,rejected,saturated:received.length>=100};
+  const a={title,url,source,published:new Date(published).toISOString(),date:kdate(published),category:category(title),brands:[] as string[],language:query.gl==='US'?'en' as const:'ko' as const,...(query.gl==='US'?{marketHint:'overseas' as const}:{}),...(feed?.sourceType?{sourceType:feed.sourceType}:{})};a.brands=articleBrands({...a,id:''});if(query.q.startsWith('(ACE OR'))a.brands=[...new Set([...a.brands,'ACE'])];return [a];
+ });return {rows,received:received.length,rejected,saturated:!feed&&received.length>=100,...(feed&&feedTimes.length?{feedOldest:new Date(Math.min(...feedTimes)).toISOString(),feedNewest:new Date(Math.max(...feedTimes)).toISOString(),feedWindowLimited:Math.min(...feedTimes)>start}:{})};
 }
 async function identify(rows:Omit<Article,'id'>[]){return Promise.all(rows.map(async a=>{const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(a.url));return {...a,id:Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,'0')).join('')}}))}
 async function saveStaged(rows:Article[]){for(const day of new Set(rows.map(a=>a.date)))await saveDay(day,rows.filter(a=>a.date===day),true)}
@@ -94,7 +101,7 @@ async function updateBatch(id:string,update:(b:Batch)=>Batch){const key='pipelin
 export async function reserveQuery(id:string,index:number){
  const b=await read<Batch>('pipeline/batches/'+id+'.json');if(!b||!Number.isInteger(index)||!b.queries[index])throw new Error('회차·질의 오류');
  if(b.finished||b.results[index])return {skipped:true};
- if(Object.entries(b.results).some(([i,r])=>(b.queries[Number(i)].provider||'google-rss')===(b.queries[index].provider||'google-rss')&&r.state==='failed'&&[403,429,502,503,0].includes(r.code||0)))return {skipped:true,reason:'이 회차의 해당 공급자 요청 중단'};
+ if(Object.entries(b.results).some(([i,r])=>providerKey(b.queries[Number(i)])===providerKey(b.queries[index])&&r.state==='failed'&&[403,429,502,503,0].includes(r.code||0)))return {skipped:true,reason:'이 회차의 해당 공급자 요청 중단'};
  const ok=await db().put('pipeline/requests/'+id+'/'+index+'.json',JSON.stringify({at:new Date().toISOString()}),{...jsonOptions,onlyIf:{etagDoesNotMatch:'*'}});if(!ok)return {skipped:true};
  await updateBatch(id,x=>({...x,results:{...x.results,[index]:{state:'started'}}}));return {reserved:true,query:b.queries[index]};
 }
@@ -102,7 +109,7 @@ export async function receiveFeed(id:string,index:number,xml:string){
  const b=await read<Batch>('pipeline/batches/'+id+'.json');if(!b||b.finished||b.results[index]?.state!=='started')throw new Error('예약되지 않았거나 완료된 질의');
  if(b.queries[index].provider==='naver-api')throw new Error('네이버 API 질의에 RSS를 저장할 수 없습니다.');
  const p=parseFeed(xml,b.queries[index],{start:b.queries[index].start||b.start,end:b.queries[index].end||b.end}),articles=await identify(p.rows);await saveStaged(articles);
- await updateBatch(id,x=>({...x,results:{...x.results,[index]:{state:'success',received:p.received,accepted:articles.length,saturated:p.saturated,rejected:p.rejected}}}));return {saved:articles.length,received:p.received,saturated:p.saturated,rejected:p.rejected};
+ await updateBatch(id,x=>({...x,results:{...x.results,[index]:{state:'success',received:p.received,accepted:articles.length,saturated:p.saturated,rejected:p.rejected,...(p.feedOldest?{feedOldest:p.feedOldest,feedNewest:p.feedNewest,feedWindowLimited:p.feedWindowLimited}:{})}}}));return {saved:articles.length,received:p.received,saturated:p.saturated,rejected:p.rejected,...(p.feedOldest?{feedOldest:p.feedOldest,feedNewest:p.feedNewest,feedWindowLimited:p.feedWindowLimited}:{})};
 }
 export function safeDiagnostics(value:unknown){
  const allowed=['server','via','retry-after','content-type','bodySha256','bodyClass','errorType'];
@@ -169,11 +176,11 @@ export async function publishStaged(){
  const old=await getNews();for(const day of new Set(data.articles.map(a=>a.date)))await saveDay(day,data.articles.filter(a=>a.date===day));
  const health=await collectionHealth();const batches=health.batches.filter(b=>Date.parse(b.end)>w.start&&Date.parse(b.start)<w.end);
  const problems=!batches.length||batches.some(b=>Object.values(b.results).some(r=>r.state!=='success'));
- const status={windowStart:data.window.start,windowEnd:data.window.end,schedule:'6시간 분산 수집 · 한국 영업일 07:40 공개',updated:new Date().toISOString(),fetched:data.articles.length,overseasFetched:data.articles.filter(a=>a.marketHint==='overseas').length,source:'누적 Google 뉴스 RSS · 필요 시 네이버 보완',partial:problems,errors:problems?['일부 피드 실패 또는 미완료']:[],...(problems?{coverageNote:'일부 피드가 지연돼 확보된 기사와 대체 수집 결과를 공개했습니다. 수집 현황에서 확인할 수 있습니다.'}:{})};
+ const status={windowStart:data.window.start,windowEnd:data.window.end,schedule:'6시간 분산 수집 · 한국 영업일 07:40 공개',updated:new Date().toISOString(),fetched:data.articles.length,overseasFetched:data.articles.filter(a=>a.marketHint==='overseas').length,source:directFeedsEnabled()?'언론사 직접 RSS · ETF 검색 피드 · 필요 시 네이버 보완':'누적 Google 뉴스 RSS · 필요 시 네이버 보완',partial:problems,errors:problems?['일부 피드 실패 또는 미완료']:[],...(problems?{coverageNote:'일부 피드가 지연돼 확보된 기사와 대체 수집 결과를 공개했습니다. 수집 현황에서 확인할 수 있습니다.'}:{})};
  // Public status is the commit point. Staging never changes the public archive or date selector.
  await db().put('status.json',JSON.stringify(status),jsonOptions);await db().delete('pipeline/publication-error.json');return {published:true,added:data.articles.length-old.articles.filter(a=>Date.parse(a.published)>=w.start&&Date.parse(a.published)<w.end).length,articles:data.articles.length,window:data.window};
 }
 export async function collectionHealth(){const allObjects: R2Object[]=[];let cursor:string|undefined;do{const page=await db().list({prefix:'pipeline/batches/',cursor});allObjects.push(...page.objects);cursor=page.truncated?page.cursor:undefined}while(cursor);const objects={objects:allObjects.sort((a,b)=>b.uploaded.getTime()-a.uploaded.getTime()).slice(0,24)};const batches=(await Promise.all(objects.objects.map(o=>read<Batch>(o.key)))).filter((b):b is Batch=>!!b).sort((a,b)=>b.started.localeCompare(a.started)).slice(0,20);
  const pendingKeys=await db().list({prefix:'staging/days/'});const pending=(await Promise.all(pendingKeys.objects.map(async o=>{const p=await db().get(o.key);return p?await p.json<Article[]>():[]}))).flat();const visible=await read<{windowStart:string;windowEnd:string;updated:string}>('status.json');
- const dayWindow=collectionWindow();return {providers:{domestic:naverConfigured()?'naver-api':'google-rss',naverConfigured:naverConfigured()},cadence:'매일 01:10·07:10·13:10·19:10 누적 수집, 영업일 07:40 공개 작업',publicStatus:visible,pending:pending.filter(a=>!visible||Date.parse(a.published)>=Date.parse(visible.windowEnd)).length,publicationError:await read('pipeline/publication-error.json'),batches,window:{start:new Date(dayWindow.start).toISOString(),end:new Date(dayWindow.end).toISOString()},rawArticles:pending.sort((a,b)=>b.published.localeCompare(a.published)).slice(0,80).map(({id,title,url,source,published})=>({id,title,url,source,published})),note:'검색 RSS는 전체 기사 전수조사가 아닙니다. 100건 응답·미완료·실패는 아래 회차에 표시합니다.'};
+ const dayWindow=collectionWindow();return {providers:{directFeeds:directFeedsEnabled()?directQueries().map(q=>({id:q.feedId,url:q.feedUrl})):[],domestic:naverConfigured()?'naver-api':'google-rss',naverConfigured:naverConfigured()},cadence:'매일 01:10·07:10·13:10·19:10 누적 수집, 영업일 07:40 공개 작업',publicStatus:visible,pending:pending.filter(a=>!visible||Date.parse(a.published)>=Date.parse(visible.windowEnd)).length,publicationError:await read('pipeline/publication-error.json'),batches,window:{start:new Date(dayWindow.start).toISOString(),end:new Date(dayWindow.end).toISOString()},rawArticles:pending.sort((a,b)=>b.published.localeCompare(a.published)).slice(0,80).map(({id,title,url,source,published})=>({id,title,url,source,published})),note:'검색 RSS는 전체 기사 전수조사가 아닙니다. 100건 응답·미완료·실패는 아래 회차에 표시합니다.'};
 }

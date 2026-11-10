@@ -8,10 +8,11 @@ class Reply(io.BytesIO):
  def __enter__(self):return self
  def __exit__(self,*args):self.close()
 
-def collect(google=503,search_error=None,article_error=None,mode='stage',skipped=False,no_links=False,naver=False):
+def collect(google=503,search_error=None,article_error=None,mode='stage',skipped=False,no_links=False,naver=False,direct=False):
  calls=[];pauses=[];saves=[];actions=[]
  batch={'id':'stage-123','mode':mode,'start':'2026-11-08T00:00:00+00:00','end':'2026-11-09T09:00:00+00:00','queries':[{'q':'ETF','hl':'ko','gl':'KR','ceid':'KR:ko'}]}
  if naver:batch['queries']=[{**batch['queries'][0],'provider':'naver-api'},{'q':'ETF','hl':'en-US','gl':'US','ceid':'US:en','provider':'google-rss'}]
+ if direct:batch['queries']=[{'q':'direct A','provider':'direct-rss','feedId':'a','feedUrl':'https://feed-a.example/rss'},{'q':'direct B','provider':'direct-rss','feedId':'b','feedUrl':'https://feed-b.example/rss'},batch['queries'][0]]
  def site_open(req,timeout):
   body=json.loads(req.data);actions.append(body)
   assert req.get_header('Oai-sites-authorization')=='Bearer secret'
@@ -28,6 +29,8 @@ def collect(google=503,search_error=None,article_error=None,mode='stage',skipped
   # external() receives a bare provider URL, with no Site authentication headers.
   assert isinstance(url,str) and 'secret' not in url
   calls.append(url)
+  if 'feed-a.example' in url:raise urllib.error.HTTPError(url,503,'unavailable',None,None)
+  if 'feed-b.example' in url:return Reply('<rss><channel></channel></rss>')
   if 'news.google.com' in url:
    if google==503:raise urllib.error.HTTPError(url,503,'unavailable',None,None)
    return Reply('<rss><channel></channel></rss>')
@@ -82,6 +85,13 @@ class CollectorTests(unittest.TestCase):
   self.assertEqual(sum(a['action']=='naverFeed' for a in actions),1)
   self.assertEqual(len(calls),1);self.assertIn('news.google.com',calls[0])
   self.assertFalse(any(a['action']=='reserveFallback' for a in actions))
+ def test_direct_publisher_failure_preserves_other_sources(self):
+  calls,pauses,_,actions=collect(google=1,direct=True)
+  self.assertEqual(calls[:2],['https://feed-a.example/rss','https://feed-b.example/rss'])
+  self.assertEqual(len(calls),3);self.assertIn('news.google.com',calls[2])
+  self.assertTrue(all(n>=5 for n in pauses))
+  self.assertFalse(any(a['action']=='reserveFallback' for a in actions))
+  self.assertEqual(actions[-1]['action'],'finish')
  def test_diagnostics_exclude_raw_response_and_request_secrets(self):
   _,_,_,actions=collect()
   failure=next(a for a in actions if a['action']=='failure')

@@ -6,7 +6,7 @@ import {verifiedArticleImage,verifiedArticleMedia} from './verified-images';
 import { env } from "cloudflare:workers";
 import {category,collectionWindow,calendarDates,isBusinessDay} from "./classify";
 export {category,collectionWindow,calendarDates,isBusinessDay} from "./classify";
-export type Article={id:string;title:string;url:string;source:string;published:string;date:string;category:string;brands:string[];summary?:string;summaryKind?:'summary'|'title_translation';marketHint?:'overseas';language?:'ko'|'en';imageUrl?:string;imageCaption?:string;imageLabel?:string;summarySource?:string};
+export type Article={id:string;title:string;url:string;source:string;sourceType?:'press_release';published:string;date:string;category:string;brands:string[];summary?:string;summaryKind?:'summary'|'title_translation';marketHint?:'overseas';language?:'ko'|'en';imageUrl?:string;imageCaption?:string;imageLabel?:string;summarySource?:string};
 const bucket=()=>{const b=(env as unknown as {BUCKET:R2Bucket}).BUCKET;if(!b)throw new Error("뉴스 저장소가 연결되지 않았습니다.");return b};
 export const kdate=(t:number)=>new Date(t+9*3600000).toISOString().slice(0,10);
 function decode(s:string){return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,"$1").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(+n))}
