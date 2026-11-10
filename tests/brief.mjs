@@ -1,7 +1,8 @@
 import fs from 'node:fs';import ts from 'typescript';import assert from 'node:assert/strict';
 const url=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64');
 const bondMilestonesURL=url(fs.readFileSync('lib/bond-milestones.ts','utf8'));
-const insightURL=url(fs.readFileSync('lib/insights.ts','utf8'));const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL).replaceAll('./insights',insightURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const overseasURL=url(fs.readFileSync('lib/overseas-events.ts','utf8'));const statementURL=url(fs.readFileSync('lib/statement-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8').replaceAll('./statement-events',statementURL).replaceAll('./overseas-events',overseasURL));const briefURL=url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./bond-milestones',bondMilestonesURL).replaceAll('./insights',insightURL).replaceAll('./ranking',rankURL).replaceAll('./overseas-events',overseasURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL));const {briefStories,groupStories}=await import(briefURL);
+const insightURL=url(fs.readFileSync('lib/insights.ts','utf8'));const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL).replaceAll('./insights',insightURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const overseasURL=url(fs.readFileSync('lib/overseas-events.ts','utf8'));const statementURL=url(fs.readFileSync('lib/statement-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8').replaceAll('./statement-events',statementURL).replaceAll('./overseas-events',overseasURL));const flowAnnouncementURL=url(fs.readFileSync('lib/fund-flow-announcements.ts','utf8'));
+const briefURL=url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./fund-flow-announcements',flowAnnouncementURL).replaceAll('./bond-milestones',bondMilestonesURL).replaceAll('./insights',insightURL).replaceAll('./ranking',rankURL).replaceAll('./overseas-events',overseasURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL));const {briefStories,groupStories}=await import(briefURL);
 const make=(i,title,category)=>({a:{id:String(i),title,category,published:'2026-10-29T00:00:00Z',source:'검증',url:'https://example.com/'+i,brands:[],date:'2026-10-29'},others:[]});
 const stories=[...Array.from({length:12},(_,i)=>make(i,'ETF 순자산 '+(i+1)+'조원 돌파','수급·성과')),...Array.from({length:5},(_,i)=>make(20+i,'운용사 '+i+' ETF 총보수 인하','상품·전략')),make(30,'ETF 특별배당 지급','배당·분배'),make(31,'ETF 신규 상장','신규 상장'),make(32,'ETF 거래정지 안내','제도·시장'),make(33,'ETF 분배금 지급 안내','배당·분배'),make(34,'ETF 경품 이벤트','마케팅')].sort((a,b)=>compareImportance(a.a,b.a));
 const selected=briefStories(stories);assert.equal(selected.length,10);assert(selected.some(s=>s.a.category==='제도·시장'));assert(selected.filter(s=>s.a.category==='수급·성과').length<=4);assert(!selected.some(s=>['33','34'].includes(s.a.id)));assert.equal(stories.length,22);
@@ -197,3 +198,36 @@ for(const t of [
  'KB운용 RISE 미국배당100 ETF 상장 후 수익률 17.1%'
 ])assert.equal(groupStories([performanceAnchor,make(920,t,'수급·성과').a]).length,2,t);
 console.log('PASS: product performance announcement aliases across categories, rounded returns, verified representative, separate products/periods/returns/payouts');
+
+const flowAnchor={...make(1100,"[금융 HOT 뉴스] 삼성운용 '커버드콜 ETF', 개인 순매수 3조2047억 기록",'수급·성과').a,summary:'삼성운용은 KODEX 200타겟위클리커버드콜의 연초 이후 개인 누적 순매수가 3조2047억원이라고 밝혔다. 최근 한 달 유입은 4811억원, 순자산은 4조7757억원이다.',summaryKind:'summary'};
+const flowAliases=[
+ '삼성자산운용, KODEX 커버드콜 ETF 순자산 4조7000억 돌파...올해 개인 순매수 1위',
+ '삼성 KODEX 200타겟위클리커버드콜, 커버드콜 ETF 중 연초이후 개인순매수 1위…3조 돌파',
+ '삼성 KODEX 200타겟위클리커버드콜, 커버드콜 ETF 중 연초이후 개인순매수 1위',
+ '삼성 KODEX 커버드콜 ETF, 개인 순매수 3조원 돌파…국내 1위',
+ '삼성운용 커버드콜 ETF, 올해 개인 자금 3조원 유입',
+ '삼성운용 "KODEX 200타겟위클리, 커버드콜ETF 중 개인 매수 1위"',
+].map((t,i)=>make(1101+i,t,'수급·성과').a);
+for(const items of [[flowAnchor,...flowAliases],[...flowAliases,flowAnchor],[...flowAliases].reverse().concat(flowAnchor)]){
+ const groups=compressFlowTopics(groupStories(items));assert.equal(groups.length,1);assert.equal(groups[0].a.id,flowAnchor.id);assert.equal(groups[0].others.length,6);
+ assert.equal(new Set(groups.flatMap(s=>[s.a,...s.others]).map(a=>a.id)).size,7);
+}
+const {fundFlowAnnouncementKeys}=await import(flowAnnouncementURL);
+for(const title of [
+ '삼성운용 KODEX 200커버드콜액티브 ETF 올해 개인 순매수 3조원 돌파',
+ '미래에셋 TIGER 200타겟위클리커버드콜 ETF 개인 순매수 3조원 돌파',
+ '삼성운용 KODEX 미국나스닥100커버드콜 ETF 개인 순매수 3조원 돌파',
+ '삼성운용 KODEX 200타겟위클리커버드콜 ETF 하루 개인 순매수 3조원 돌파',
+ '삼성운용 KODEX 200타겟위클리커버드콜 ETF 최근 한 달 개인 순매수 3조원 돌파',
+ '삼성운용 KODEX 200타겟위클리커버드콜 ETF 올해 개인 순매수 4조원 돌파',
+ '삼성운용 KODEX 200타겟위클리커버드콜 ETF 올해 개인 순매수 3조1000억원 기록',
+ '삼성운용 KODEX 200타겟위클리커버드콜 ETF 올해 개인 순매수 3조달러 돌파',
+ '삼성운용 KODEX 커버드콜 ETF 순매도 3조원',
+]){const other=make(1120,title,'수급·성과').a;assert(!fundFlowAnnouncementKeys([flowAnchor,other]).has(other.id),title)}
+const nextDay={...flowAliases[0],date:'2026-10-30',published:'2026-10-30T00:00:00Z'};
+assert(!fundFlowAnnouncementKeys([flowAnchor,nextDay]).has(nextDay.id));
+const translated={...flowAnchor,summaryKind:'title_translation'};
+assert.equal(fundFlowAnnouncementKeys([translated,...flowAliases]).size,0,'a translated title is not body evidence');
+const competing={...flowAnchor,id:'competing',summary:flowAnchor.summary.replaceAll('200타겟위클리커버드콜','200커버드콜액티브')};
+assert(!fundFlowAnnouncementKeys([flowAnchor,competing,flowAliases[0]]).has(flowAliases[0].id),'a generic issuer headline cannot bridge competing products');
+console.log('PASS: verified fund announcement unifies flow/AUM/rank and shortened names; representative/source retention; product, period, amount, currency and ambiguity guards');

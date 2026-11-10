@@ -1,3 +1,4 @@
+import {fundFlowAnnouncementKeys} from './fund-flow-announcements';
 import {isBondAumStory,bondMilestoneKeys} from './bond-milestones';
 import {canJoinUnspecifiedFlow} from './overseas-events';
 import {sourceDateNote} from './insights';
@@ -100,6 +101,7 @@ export function performanceEventKeys(articles:Article[]):Map<string,string>{
 export function groupStories(articles:Article[],enabled=true):Story[]{
  const batteryAnchors = new Set(articles.filter(a => /전고체배터리ESS\s*TOP2플러스/i.test(a.title)).map(batteryMilestone).filter(Boolean));
  const performanceKeys=performanceEventKeys(articles);
+ const flowAnnouncementKeys=fundFlowAnnouncementKeys(articles);
  const distributionKeys=distributionEventKeys(articles);
  const bondKeys=bondMilestoneKeys(articles);
  const storyKey=(a:Article)=>{const t=a.title;
@@ -108,7 +110,7 @@ export function groupStories(articles:Article[],enabled=true):Story[]{
  const taxGuideAnchors = new Set(articles.filter(a => /절세.{0,12}가이드\s*북/.test(a.title) && /발간|출시|공개/.test(a.title)).map(taxGuideKey).filter(Boolean));
  const result:Story[]=[];
  for(const a of articles){
-  const found=enabled?result.find(x=>{const pa=performanceKeys.get(a.id),pb=performanceKeys.get(x.a.id);if(pa&&pb)return pa===pb;const seminar=aceAllocationSeminarKey(a);if(seminar&&seminar===aceAllocationSeminarKey(x.a))return true;const comic=kiwoomComicKey(a);if(comic&&comic===kiwoomComicKey(x.a))return true;const battery=batteryMilestone(a);if(battery&&batteryAnchors.has(battery)&&battery===batteryMilestone(x.a))return true;const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
+  const found=enabled?result.find(x=>{const fa=flowAnnouncementKeys.get(a.id),fb=flowAnnouncementKeys.get(x.a.id);if(fa&&fb)return fa===fb;const pa=performanceKeys.get(a.id),pb=performanceKeys.get(x.a.id);if(pa&&pb)return pa===pb;const seminar=aceAllocationSeminarKey(a);if(seminar&&seminar===aceAllocationSeminarKey(x.a))return true;const comic=kiwoomComicKey(a);if(comic&&comic===kiwoomComicKey(x.a))return true;const battery=batteryMilestone(a);if(battery&&batteryAnchors.has(battery)&&battery===batteryMilestone(x.a))return true;const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
   if(found){if(![found.a,...found.others].some(b=>b.id===a.id||b.url===a.url)){if(a.summary&&!found.a.summary){found.others.push(found.a);found.a=a}else found.others.push(a)}}else result.push({a,others:[]});
  }
  return result;
