@@ -2,11 +2,12 @@ import {env} from 'cloudflare:workers';
 import {collectionQueries,collectionWindow,calendarDates,isBusinessDay,kdate,category,getNews,readDay,saveDay,type Article} from './news';
 import {validNaverItems} from './naver-import';
 import {articleBrands} from './verified-brands';
+import {naverConfigured,readNaverNews,parseNaverNews} from './naver-api';
 const HOUR=3600000;
 const db=()=>(env as unknown as {BUCKET:R2Bucket}).BUCKET;
 const jsonOptions={httpMetadata:{contentType:'application/json'}};
 const read=async<T>(key:string):Promise<T|null>=>{const o=await db().get(key);return o?o.json<T>():null};
-export type Batch={id:string;mode:'stage'|'release';started:string;finished?:string;start:string;end:string;queries:{q:string;hl:string;gl:string;ceid:string;start?:string;end?:string;recoveryTruncated?:boolean}[];results:Record<string,{state:'started'|'success'|'failed';received?:number;accepted?:number;saturated?:boolean;rejected?:FeedRejections;code?:number;reason?:string}>;fallbackCount:number;fallback?:{state:'started'|'success'|'failed';started:string;finished?:string;code?:number};coverageGap?:boolean};
+export type Batch={id:string;mode:'stage'|'release';started:string;finished?:string;start:string;end:string;queries:{provider?:'google-rss'|'naver-api';q:string;hl:string;gl:string;ceid:string;start?:string;end?:string;recoveryTruncated?:boolean}[];results:Record<string,{state:'started'|'success'|'failed';received?:number;accepted?:number;saturated?:boolean;rejected?:FeedRejections;code?:number;reason?:string;diagnostics?:Record<string,string>}>;fallbackCount:number;fallback?:{state:'started'|'success'|'failed';started:string;finished?:string;code?:number;searchMatches?:number;articleChecked?:number;metadataRejected?:number};coverageGap?:boolean};
 type FeedRejections = { invalidDate: number; outsideWindow: number; invalidMetadata: number; unrelatedTitle: number };
 
 export function plan(now=Date.now(),mode:'stage'|'release'='stage'){
@@ -33,14 +34,14 @@ export function plan(now=Date.now(),mode:'stage'|'release'='stage'){
    ];
   }
   return terms.map(q => ({
-   ...query,
+   ...query,provider:query.gl==='KR'&&naverConfigured()?'naver-api' as const:'google-rss' as const,
    q: q + (query.gl === 'KR' && base === 'ETF' ? ' -비트코인 -이더리움 -가상자산 -암호화폐' : '') + ' when:1d',
   }));
  });
  return {id:mode==='release'?'release-'+new Date(window.end).toISOString():'stage-'+slot,mode,start:new Date(start).toISOString(),end:new Date(end).toISOString(),queries,publicationWindow:{start:new Date(window.start).toISOString(),end:new Date(window.end).toISOString()},businessDay:isBusinessDay(now),cadence:'매일 01:10·07:10·13:10·19:10 수집 / 한국 영업일 07:40 공개'};
 }
 async function queryProgressKey(q:Batch['queries'][number]){
- const identity=[q.q.replace(/ when:\d+[hd]$/,''),q.hl,q.gl,q.ceid].join('|');
+ const identity=[...(q.provider==='naver-api'?['naver-api']:[]),q.q.replace(/ when:\d+[hd]$/,''),q.hl,q.gl,q.ceid].join('|');
  const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(identity));
  return 'pipeline/query-success/'+Array.from(new Uint8Array(hash)).map(x=>x.toString(16).padStart(2,'0')).join('')+'.json';
 }
@@ -93,19 +94,41 @@ async function updateBatch(id:string,update:(b:Batch)=>Batch){const key='pipelin
 export async function reserveQuery(id:string,index:number){
  const b=await read<Batch>('pipeline/batches/'+id+'.json');if(!b||!Number.isInteger(index)||!b.queries[index])throw new Error('회차·질의 오류');
  if(b.finished||b.results[index])return {skipped:true};
- if(Object.values(b.results).some(r=>r.state==='failed'&&[403,429,502,503,0].includes(r.code||0)))return {skipped:true,reason:'이 회차의 Google 요청 중단'};
+ if(Object.entries(b.results).some(([i,r])=>(b.queries[Number(i)].provider||'google-rss')===(b.queries[index].provider||'google-rss')&&r.state==='failed'&&[403,429,502,503,0].includes(r.code||0)))return {skipped:true,reason:'이 회차의 해당 공급자 요청 중단'};
  const ok=await db().put('pipeline/requests/'+id+'/'+index+'.json',JSON.stringify({at:new Date().toISOString()}),{...jsonOptions,onlyIf:{etagDoesNotMatch:'*'}});if(!ok)return {skipped:true};
  await updateBatch(id,x=>({...x,results:{...x.results,[index]:{state:'started'}}}));return {reserved:true,query:b.queries[index]};
 }
 export async function receiveFeed(id:string,index:number,xml:string){
  const b=await read<Batch>('pipeline/batches/'+id+'.json');if(!b||b.finished||b.results[index]?.state!=='started')throw new Error('예약되지 않았거나 완료된 질의');
+ if(b.queries[index].provider==='naver-api')throw new Error('네이버 API 질의에 RSS를 저장할 수 없습니다.');
  const p=parseFeed(xml,b.queries[index],{start:b.queries[index].start||b.start,end:b.queries[index].end||b.end}),articles=await identify(p.rows);await saveStaged(articles);
  await updateBatch(id,x=>({...x,results:{...x.results,[index]:{state:'success',received:p.received,accepted:articles.length,saturated:p.saturated,rejected:p.rejected}}}));return {saved:articles.length,received:p.received,saturated:p.saturated,rejected:p.rejected};
 }
-export async function queryFailed(id:string,index:number,code:number){return updateBatch(id,b=>{if(b.finished||b.results[index]?.state!=='started')throw new Error('예약되지 않은 질의');return {...b,results:{...b.results,[index]:{state:'failed',code,reason:code?'피드 응답 '+code:'연결 실패'}}}})}
+export function safeDiagnostics(value:unknown){
+ const allowed=['server','via','retry-after','content-type','bodySha256','bodyClass','errorType'];
+ if(!value||typeof value!=='object')return {};
+ return Object.fromEntries(Object.entries(value).filter(([k,v])=>allowed.includes(k)&&typeof v==='string').map(([k,v])=>[k,String(v).replace(/[\r\n\x00-\x1f]/g,' ').slice(0,160)]));
+}
+export async function queryFailed(id:string,index:number,code:number,diagnostics?:unknown){return updateBatch(id,b=>{if(b.finished||b.results[index]?.state!=='started')throw new Error('예약되지 않은 질의');return {...b,results:{...b.results,[index]:{state:'failed',code,reason:code?'피드 응답 '+code:'연결 실패',diagnostics:safeDiagnostics(diagnostics)}}}})}
+export async function receiveNaverFeed(id:string,index:number){
+ const b=await read<Batch>('pipeline/batches/'+id+'.json');
+ if(!b||b.finished||b.queries[index]?.provider!=='naver-api'||b.results[index]?.state!=='started')throw new Error('예약되지 않은 네이버 API 질의');
+ const claimed=await db().put('pipeline/requests/'+id+'/naver-api-'+index+'.json','{}',{...jsonOptions,onlyIf:{etagDoesNotMatch:'*'}});
+ if(!claimed)return {skipped:true,saved:0};
+ try{
+  const response=await readNaverNews(b.queries[index].q);
+  if(!response.ok){await queryFailed(id,index,response.code);return {failed:true,code:response.code,saved:0}}
+  const q=b.queries[index],p=parseNaverNews(response.items,{start:q.start||b.start,end:q.end||b.end});
+  const rows=await identify(p.rows.map(a=>({...a,date:kdate(Date.parse(a.published)),category:category(a.title),brands:articleBrands({...a,id:'',brands:[]}),language:'ko' as const})));
+  await saveStaged(rows);
+  await updateBatch(id,x=>({...x,results:{...x.results,[index]:{state:'success',received:p.received,accepted:rows.length,saturated:p.saturated,rejected:p.rejected}}}));
+  return {saved:rows.length,received:p.received,saturated:p.saturated,rejected:p.rejected};
+ }catch{await queryFailed(id,index,0,{errorType:'NaverRequestOrValidationError'});return {failed:true,code:0,saved:0}}
+}
+
 export async function reserveFallback(id:string){
  const b=await read<Batch>('pipeline/batches/'+id+'.json');
- if(!b||b.finished||b.fallback)return {skipped:true};
+ if(!b||b.finished||b.fallback||b.queries.some(q=>q.provider==='naver-api'))return {skipped:true};
  const results=Object.values(b.results);
  if(!results.length||results.some(r=>r.state==='started'))return {skipped:true};
  const failed=results.some(r=>r.state==='failed');
@@ -116,9 +139,9 @@ export async function reserveFallback(id:string){
  await updateBatch(id,b=>({...b,fallback:{state:'started',started:new Date().toISOString()}}));
  return {reserved:true,maxItems:b.mode==='stage'?20:30};
 }
-export async function finishFallback(id:string,code:number){return updateBatch(id,b=>{
+export async function finishFallback(id:string,code:number,stats?:{searchMatches?:number;articleChecked?:number;metadataRejected?:number}){return updateBatch(id,b=>{
  if(b.finished||b.fallback?.state!=='started')throw new Error('예약되지 않은 보완');
- return {...b,fallback:{...b.fallback,state:code?'failed':'success',finished:new Date().toISOString(),...(code?{code}:{})}};
+ return {...b,fallback:{...b.fallback,state:code?'failed':'success',finished:new Date().toISOString(),...(code?{code}:{}),...Object.fromEntries(Object.entries(stats||{}).filter(([k,v])=>['searchMatches','articleChecked','metadataRejected'].includes(k)&&typeof v==='number'&&Number.isInteger(v)&&v>=0&&v<=10000))}};
 })}
 export async function fallbackImport(id:string,items:unknown){
  const b=await read<Batch>('pipeline/batches/'+id+'.json');if(!b||b.finished)throw new Error('유효하지 않은 회차');
@@ -152,5 +175,5 @@ export async function publishStaged(){
 }
 export async function collectionHealth(){const allObjects: R2Object[]=[];let cursor:string|undefined;do{const page=await db().list({prefix:'pipeline/batches/',cursor});allObjects.push(...page.objects);cursor=page.truncated?page.cursor:undefined}while(cursor);const objects={objects:allObjects.sort((a,b)=>b.uploaded.getTime()-a.uploaded.getTime()).slice(0,24)};const batches=(await Promise.all(objects.objects.map(o=>read<Batch>(o.key)))).filter((b):b is Batch=>!!b).sort((a,b)=>b.started.localeCompare(a.started)).slice(0,20);
  const pendingKeys=await db().list({prefix:'staging/days/'});const pending=(await Promise.all(pendingKeys.objects.map(async o=>{const p=await db().get(o.key);return p?await p.json<Article[]>():[]}))).flat();const visible=await read<{windowStart:string;windowEnd:string;updated:string}>('status.json');
- const dayWindow=collectionWindow();return {cadence:'매일 01:10·07:10·13:10·19:10 누적 수집, 영업일 07:40 공개 작업',publicStatus:visible,pending:pending.filter(a=>!visible||Date.parse(a.published)>=Date.parse(visible.windowEnd)).length,publicationError:await read('pipeline/publication-error.json'),batches,window:{start:new Date(dayWindow.start).toISOString(),end:new Date(dayWindow.end).toISOString()},rawArticles:pending.sort((a,b)=>b.published.localeCompare(a.published)).slice(0,80).map(({id,title,url,source,published})=>({id,title,url,source,published})),note:'검색 RSS는 전체 기사 전수조사가 아닙니다. 100건 응답·미완료·실패는 아래 회차에 표시합니다.'};
+ const dayWindow=collectionWindow();return {providers:{domestic:naverConfigured()?'naver-api':'google-rss',naverConfigured:naverConfigured()},cadence:'매일 01:10·07:10·13:10·19:10 누적 수집, 영업일 07:40 공개 작업',publicStatus:visible,pending:pending.filter(a=>!visible||Date.parse(a.published)>=Date.parse(visible.windowEnd)).length,publicationError:await read('pipeline/publication-error.json'),batches,window:{start:new Date(dayWindow.start).toISOString(),end:new Date(dayWindow.end).toISOString()},rawArticles:pending.sort((a,b)=>b.published.localeCompare(a.published)).slice(0,80).map(({id,title,url,source,published})=>({id,title,url,source,published})),note:'검색 RSS는 전체 기사 전수조사가 아닙니다. 100건 응답·미완료·실패는 아래 회차에 표시합니다.'};
 }

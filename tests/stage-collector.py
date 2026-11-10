@@ -8,9 +8,10 @@ class Reply(io.BytesIO):
  def __enter__(self):return self
  def __exit__(self,*args):self.close()
 
-def collect(google=503,search_error=None,article_error=None,mode='stage',skipped=False):
+def collect(google=503,search_error=None,article_error=None,mode='stage',skipped=False,no_links=False,naver=False):
  calls=[];pauses=[];saves=[];actions=[]
  batch={'id':'stage-123','mode':mode,'start':'2026-11-08T00:00:00+00:00','end':'2026-11-09T09:00:00+00:00','queries':[{'q':'ETF','hl':'ko','gl':'KR','ceid':'KR:ko'}]}
+ if naver:batch['queries']=[{**batch['queries'][0],'provider':'naver-api'},{'q':'ETF','hl':'en-US','gl':'US','ceid':'US:en','provider':'google-rss'}]
  def site_open(req,timeout):
   body=json.loads(req.data);actions.append(body)
   assert req.get_header('Oai-sites-authorization')=='Bearer secret'
@@ -20,6 +21,7 @@ def collect(google=503,search_error=None,article_error=None,mode='stage',skipped
   elif action=='reserveFallback':result={'reserved':True,'maxItems':20 if mode=='stage' else 30}
   elif action=='fallback':saves.extend(body['items']);result={'saved':len(body['items'])}
   elif action=='feed':result={'saved':google}
+  elif action=='naverFeed':result={'failed':True,'code':429,'saved':0}
   else:result={'saved':len(saves)}
   return Reply(json.dumps(result))
  def external(url,timeout):
@@ -32,7 +34,7 @@ def collect(google=503,search_error=None,article_error=None,mode='stage',skipped
   if 'search.naver.com' in url:
    if search_error:raise urllib.error.HTTPError(url,search_error,'limited',None,None)
    i=sum('search.naver.com' in u for u in calls)
-   return Reply(''.join(f'<a href="https://n.news.naver.com/mnews/article/001/{i*100+n}">x</a>' for n in range(40)))
+   return Reply('' if no_links else ''.join(f'<a href="https://n.news.naver.com/mnews/article/001/{i*100+n}">x</a>' for n in range(40)))
   if article_error:raise urllib.error.HTTPError(url,article_error,'limited',None,None)
   return Reply('<meta property="og:title" content="미국 상장 ETF 신규 상품 투자 전략"><meta property="og:article:author" content="테스트경제"><span data-date-time="2026-11-09T16:00:00+09:00"></span>')
  fake=type('Site',(),{'open':staticmethod(site_open)})()
@@ -70,5 +72,20 @@ class CollectorTests(unittest.TestCase):
   self.assertEqual(sum('search.naver.com' in u for u in calls),3);self.assertEqual(len(saves),30)
  def test_duplicate_has_no_provider_requests(self):
   calls,_,_,_=collect(skipped=True);self.assertFalse(calls)
+ def test_no_links_is_not_reported_as_empty_news_success(self):
+  calls,_,saves,actions=collect(no_links=True)
+  done=next(a for a in actions if a['action']=='finishFallback')
+  self.assertEqual(done['code'],-2);self.assertEqual(done['stats']['searchMatches'],0)
+  self.assertEqual(len(calls),3);self.assertFalse(saves)
+ def test_api_provider_failure_still_runs_google_without_html_retry(self):
+  calls,_,_,actions=collect(google=1,naver=True)
+  self.assertEqual(sum(a['action']=='naverFeed' for a in actions),1)
+  self.assertEqual(len(calls),1);self.assertIn('news.google.com',calls[0])
+  self.assertFalse(any(a['action']=='reserveFallback' for a in actions))
+ def test_diagnostics_exclude_raw_response_and_request_secrets(self):
+  _,_,_,actions=collect()
+  failure=next(a for a in actions if a['action']=='failure')
+  self.assertEqual(len(failure['diagnostics']['bodySha256']),64)
+  self.assertNotIn('secret',json.dumps(failure['diagnostics']))
 
 if __name__=='__main__':unittest.main()
