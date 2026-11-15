@@ -8,6 +8,9 @@ export function importance(a:Pick<Article,'title'|'category'>):Importance{
  const add=(value:number,reason:string)=>{score+=value;reasons.push(reason)};
  if(/\b(?:SEC|regulat\w*|legislation|tax rules?)\b|제도|규제|금융위|금감원|금융당국|법안|과세|세제|세금|퇴직연금.*(?:허용|확대|편입|한도)|투자한도/i.test(t))add(45,'제도·투자 가능 범위');
  if(/\b(?:liquidat\w*|closures?|delist\w*|trading halt|tracking error)\b|상장폐지|거래정지|청산|괴리율|추적오차|유동성.*(?:위기|부족)/i.test(t))add(50,'운용·거래 위험');
+ if(/상관계수.{0,8}미달.{0,8}공시/.test(t))add(35,'운용 기준·공시 점검');
+ if(/권익위/.test(t)&&/ETF/.test(t)&&/조사/.test(t))add(35,'제도·감독 조사');
+ if(/은행.*ETF.*판매수수료|ETF.*판매수수료.*(?:인하|낮아)/.test(t))add(20,'판매 비용 논의');
  if(isNewListing(t))add(32,'신상품·신규 상장');
  // Distribution signals are mutually exclusive: routine notices must not stack with special payouts.
  if(/분배금.*(?:삭감|중단|축소|급감)|배당.*(?:삭감|중단)/.test(t))add(50,'배당·분배 지급 위험');

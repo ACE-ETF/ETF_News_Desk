@@ -95,3 +95,8 @@ assert(!marketGroupMatches(domesticEvent,'overseas'));
 check('ACE 미국채 ETF 상장', 'domestic');
 check('키움증권, 미국 증시에 상장된 QQQ ETF 매매 지원', 'overseas');
 check('한화운용 방산 ETF, NYSE-ADX 교차 상장', 'overseas');
+
+for(const title of ['상관계수 미달 공시 급증세… 액티브 ETF에 93% 집중','은행 ETF 판매수수료 낮아질까…TF 오늘 첫 회의 연다','[단독] 레버리지 ETF 논란…권익위, 이해충돌 조사 나선다','미국 상위 10종목·채권 ETF 2종, 코스피 상장'])check(title,'domestic');
+assert(isSharedInsight({title:'롤러코스피에 개미들 불안불안… 방어주·파킹 ETF 주목'}));
+assert(!isSharedInsight({title:'새로운 액티브 ETF 상품 안내'}));
+console.log('PASS: domestic ETF supervision/cost/listing evidence and venue-neutral defensive strategy');
