@@ -34,7 +34,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: python -m unittest discover -s scripts -p 'test-free-news-runner.py' -v
+      - run: python scripts/test-free-news-runner.py -v
       - run: python -m py_compile scripts/free-news-runner.py public/collector.py
   run:
     needs: validate
@@ -51,6 +51,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Read existing public edition
+        continue-on-error: true
+        run: python scripts/free-news-runner.py --mode status
       - name: Select mode and validate secret
         id: mode
         run: |
