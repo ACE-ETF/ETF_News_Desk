@@ -93,6 +93,19 @@ jobs:
         continue-on-error: true
         working-directory: source
         run: python -m pip install -r scripts/static-news-requirements.txt
+      - name: Verify free translation model
+        if: steps.mode.outputs.mode != 'stage'
+        continue-on-error: true
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import importlib.util
+          spec=importlib.util.spec_from_file_location("pipeline","scripts/static-news.py")
+          m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+          result=m.offline_translator()("Bond ETF launches in the United States")
+          if not m.re.search(r"[가-힣]",result):raise RuntimeError("Translation smoke check failed")
+          m.log(translationModelReady=True,example=result)
+          PY
       - name: Prepare and publish stored articles
         working-directory: source
         env:

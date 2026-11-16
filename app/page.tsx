@@ -9,7 +9,7 @@ import {sourceDateNote} from '../lib/insights';
 import {newsReadUrl} from '../lib/client-news';
 import {verifiedArticleImage,verifiedArticleMedia} from '../lib/verified-images';
 import {articleBrands} from '../lib/verified-brands';
-import {collectionWindow,isBusinessDay} from '../lib/classify';
+import {collectionWindow,isBusinessDay,category} from '../lib/classify';
 import {isRoutineStory,canGroupStories} from '../lib/story-events';
 import {marketGroupMatches,marketLabels,storyMarketScope,isSharedInsight,marketOrder} from '../lib/market';
 import {headlineDigest} from '../lib/digest';
@@ -47,7 +47,7 @@ function DailyBriefingPanel({briefing,articles}:{briefing:DailyBriefing;articles
 export default function Page(){
  const [now,setNow]=useState<number|null>(null);
  const [data,setData]=useState<Data>({articles:[],dates:[],status:null}),[date,setDate]=useState(''),[cat,setCat]=useState('전체'),[query,setQuery]=useState(''),[brand,setBrand]=useState('전체 브랜드'),[error,setError]=useState(''),[group,setGroup]=useState(true),[sort,setSort]=useState('importance'),[highOnly,setHighOnly]=useState(false),[mode,setMode]=useState<'brief'|'all'>('brief'),[visible,setVisible]=useState(10),[loading,setLoading]=useState(true),[selectedKeyword,setSelectedKeyword]=useState(''),[includeRoutine,setIncludeRoutine]=useState(false),[market,setMarket]=useState<'all'|'domestic'|'overseas'>('domestic');
- async function load(d:string,quiet=false){if(!quiet)setLoading(true);setError('');try{const r=await fetch(newsReadUrl('news',d),{cache:'no-store'});const x=await r.json() as Data & {error?:string};if(!r.ok)throw new Error(x.error||'기사를 불러오지 못했습니다.');setData({...x,articles:x.articles.map(a=>({...a,brands:articleBrands(a),imageUrl:verifiedArticleImage(a),imageCaption:verifiedArticleMedia(a)?.caption,imageLabel:verifiedArticleMedia(a)?.label}))})}catch(e){setError(String(e))}finally{if(!quiet)setLoading(false)}}
+ async function load(d:string,quiet=false){if(!quiet)setLoading(true);setError('');try{const r=await fetch(newsReadUrl('news',d),{cache:'no-store'});const x=await r.json() as Data & {error?:string};if(!r.ok)throw new Error(x.error||'기사를 불러오지 못했습니다.');setData({...x,articles:x.articles.map(a=>({...a,category:category(a.title),brands:articleBrands(a),imageUrl:verifiedArticleImage(a),imageCaption:verifiedArticleMedia(a)?.caption,imageLabel:verifiedArticleMedia(a)?.label}))})}catch(e){setError(String(e))}finally{if(!quiet)setLoading(false)}}
  useEffect(()=>{void load(date)},[date]);
  useEffect(()=>{
   setNow(Date.now());

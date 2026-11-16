@@ -57,7 +57,7 @@ def due(now, closed):
     return business(local.date(),closed) and (local.hour,local.minute)>=(7,40)
 def category(title):
     rules=[
-        (r"상장폐지|거래정지|규제|금융위|법안|\bSEC\b|regulat|liquidat|delist","제도·시장"),
+        (r"상장폐지|거래정지|규제|과세|세제|금융위|법안|\bSEC\b|regulat|liquidat|delist","제도·시장"),
         (r"분배금|분배율|분배락|배당락|distribution|dividend|payout","배당·분배"),
         (r"이벤트|경품|증정|캠페인|세미나|수상","마케팅"),
         (r"신규\s*상장|신규\s*출시|ETF.{0,20}출시|launch|debut","신규 상장"),
@@ -111,6 +111,7 @@ def parse_feed(xml, query, start, end):
            "category":category(title),"brands":brands,"language":"en" if query["gl"]=="US" else "ko"}
         if query["gl"]=="US":a["marketHint"]="overseas"
         if query.get("sourceType"):a["sourceType"]=query["sourceType"]
+        elif source in {"Business Wire","PR Newswire","GlobeNewswire"}:a["sourceType"]="press_release"
         accepted.append(a)
     return accepted,{"received":received,"accepted":len(accepted),
         "saturated":query["provider"]=="google-rss" and received>=100,
@@ -204,7 +205,16 @@ def offline_translator():
     metadata=list(cache.glob("**/metadata.json")) if cache.exists() else []
     if not metadata:
         cache.mkdir(parents=True,exist_ok=True);archive=cache/"model.argosmodel"
-        urllib.request.urlretrieve("https://argos-net.com/v1/translate-en_ko-1_1.argosmodel",archive)
+        for model_url in [
+            "https://data.argosopentech.com/argospm/v1/translate-en_ko-1_1.argosmodel",
+            "https://argos-net.com/v1/translate-en_ko-1_1.argosmodel",
+        ]:
+            try:
+                urllib.request.urlretrieve(model_url,archive)
+                break
+            except urllib.error.HTTPError as error:
+                log(modelDownloadHost=urllib.parse.urlsplit(model_url).hostname,status=error.code)
+        else:raise RuntimeError("translation_model_download_unavailable")
         with zipfile.ZipFile(archive) as z:
             for member in z.infolist():
                 if not (cache/member.filename).resolve().is_relative_to(cache.resolve()):raise ValueError("invalid_model_archive")
@@ -290,6 +300,16 @@ def edition(state, selected, win, now):
     ]
     briefing={"windowStart":win["start"],"windowEnd":win["end"],"overview":overview,"items":[
         {"title":a["title"][:90],"text":(("제목 번역 기준: " if a.get("summaryKind")=="title_translation" else "")+a.get("summary","원제목 기준: "+a["title"]))[:400],"articleIds":[a["id"]]} for a in chosen]}
+    ids={a["id"] for a in articles}
+    for path in (ROOT/"editorial").glob("*.json"):
+        reviewed=read(path,{}).get("briefing")
+        if (reviewed and reviewed.get("windowStart")==win["start"] and reviewed.get("windowEnd")==win["end"]
+            and 2<=len(reviewed.get("overview",[]))<=3
+            and all(isinstance(t,str) and 0<len(t)<=160 for t in reviewed["overview"])
+            and 1<=len(reviewed.get("items",[]))<=5
+            and all(0<len(i.get("title",""))<=90 and 0<len(i.get("text",""))<=400
+                    and 1<=len(i.get("articleIds",[]))<=3 and set(i["articleIds"]).issubset(ids) for i in reviewed["items"])):
+            briefing=reviewed
     relevant=[b for b in state["batches"] if b["end"]>win["start"] and b["start"]<win["end"]]
     partial=not relevant or any(len(b["results"])<len(b["queries"]) or any(r["state"]!="success" for r in b["results"].values()) for b in relevant)
     missing=sum(a.get("language")=="en" and not a.get("summary") and not routine(a) for a in articles)
