@@ -110,7 +110,7 @@ def numbers(text):
 
 
 def protected_terms(text):
-    return set(re.findall(r"\b[A-Z][A-Z0-9.]{1,7}\b", text))
+    return set(re.findall(r"(?<![A-Za-z0-9])[A-Z][A-Z0-9.]{1,7}(?![A-Za-z0-9])", text))
 
 
 def safe_translation(title, translated):
