@@ -150,3 +150,21 @@ jobs:
       - name: Deploy at the existing URL
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify the live news edition
+        env:
+          LIVE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          python3 - <<'PY'
+          import json,os,urllib.request
+          base=os.environ["LIVE_URL"].rstrip("/")+"/"
+          marker="?v="+os.environ["GITHUB_SHA"]
+          with urllib.request.urlopen(base+marker,timeout=30) as r:
+              assert 'etf-static-data' in r.read().decode(), "Static news source marker missing"
+          with urllib.request.urlopen(base+"news-data/latest.json"+marker,timeout=30) as r:
+              data=json.load(r)
+          assert len(data["articles"])>0
+          assert len(data["articles"])==data["status"]["fetched"]
+          assert all(data["window"]["start"]<=a["published"]<data["window"]["end"] for a in data["articles"])
+          remaining=sum(a.get("language")=="en" and not a.get("summary") for a in data["articles"])
+          print(json.dumps({"verifiedLive":True,"url":base,"count":len(data["articles"]),"window":data["window"],"untranslated":remaining},ensure_ascii=False))
+          PY
