@@ -1,0 +1,3 @@
+ctranslate2>=4,<5
+sentencepiece>=0.2,<1
+trafilatura>=2,<3

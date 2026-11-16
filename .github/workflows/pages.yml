@@ -2,28 +2,128 @@ name: Deploy ETF News Desk
 on:
   push:
     branches: [main]
+  schedule:
+    - cron: '10 4,10,16,22 * * *'
+    - cron: '40 22 * * 0-4'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'release collects once; stored-release only processes saved articles'
+        required: true
+        default: stored-release
+        type: choice
+        options: [release, stored-release, stage]
 permissions:
   contents: read
 concurrency:
-  group: github-pages
-  cancel-in-progress: true
+  group: etf-news-production
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    env:
+      EVENT_NAME: ${{ github.event_name }}
+      EVENT_SCHEDULE: ${{ github.event.schedule }}
+      INPUT_MODE: ${{ inputs.mode }}
+      OMP_NUM_THREADS: '2'
     steps:
       - uses: actions/checkout@v6
+        with:
+          path: source
+          persist-credentials: false
+      - uses: actions/checkout@v6
+        with:
+          ref: news-data
+          path: source/_news_state
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: source/scripts/static-news-requirements.txt
+      - name: Test publication boundaries, deduplication and feed limits
+        working-directory: source
+        run: python scripts/test-static-news.py -v
+      - name: Choose collection or release
+        id: mode
+        run: |
+          python - <<'PY'
+          import os
+          event=os.environ["EVENT_NAME"]
+          mode="stage" if os.environ.get("EVENT_SCHEDULE")=="10 4,10,16,22 * * *" else "release"
+          if event=="workflow_dispatch":mode=os.environ.get("INPUT_MODE") or "stored-release"
+          with open(os.environ["GITHUB_OUTPUT"],"a") as f:f.write("mode="+mode+"\n")
+          PY
+      - name: Claim the round before any feed request
+        working-directory: source
+        env:
+          RUN_MODE: ${{ steps.mode.outputs.mode }}
+        run: |
+          python scripts/static-news.py --mode "$RUN_MODE" --phase claim
+          git -C _news_state config user.name "ETF News Desk"
+          git -C _news_state config user.email "newsdesk@users.noreply.github.com"
+          git -C _news_state add state.json
+          if ! git -C _news_state diff --cached --quiet; then
+            git -C _news_state commit -m "Claim bounded news collection round"
+            git -C _news_state push origin HEAD:news-data
+          fi
+      - name: Collect fixed RSS feeds once
+        working-directory: source
+        env:
+          RUN_MODE: ${{ steps.mode.outputs.mode }}
+        run: python scripts/static-news.py --mode "$RUN_MODE" --phase collect
+      - name: Persist collection results
+        if: always()
+        working-directory: source
+        run: |
+          git -C _news_state add state.json
+          if ! git -C _news_state diff --cached --quiet; then
+            git -C _news_state commit -m "Save RSS metadata and provider diagnostics"
+            git -C _news_state push origin HEAD:news-data
+          fi
+      - uses: actions/cache@v4
+        if: steps.mode.outputs.mode != 'stage'
+        with:
+          path: ~/.cache/etf-news
+          key: etf-news-en-ko-argos-1-1
+      - name: Install free CPU translation and text extraction tools
+        if: steps.mode.outputs.mode != 'stage'
+        continue-on-error: true
+        working-directory: source
+        run: python -m pip install -r scripts/static-news-requirements.txt
+      - name: Prepare and publish stored articles
+        working-directory: source
+        env:
+          RUN_MODE: ${{ steps.mode.outputs.mode }}
+        run: python scripts/static-news.py --mode "$RUN_MODE" --phase publish
+      - name: Export and verify the static edition
+        working-directory: source
+        run: python scripts/static-news.py --phase export
+      - name: Persist public edition and archive
+        if: always()
+        working-directory: source
+        run: |
+          git -C _news_state add state.json
+          if [ -d _news_state/public ]; then git -C _news_state add public; fi
+          if ! git -C _news_state diff --cached --quiet; then
+            git -C _news_state commit -m "Save published edition, translations and day archives"
+            git -C _news_state push origin HEAD:news-data
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - name: Install frontend dependencies
+        working-directory: source
         run: npm install --prefix pages --ignore-scripts --no-audit --no-fund
-      - name: Build shared news interface
+      - name: Build existing news interface
+        working-directory: source
         run: npm run build --prefix pages
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: dist-pages
+          path: source/dist-pages
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -34,6 +134,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy
+      - name: Deploy at the existing URL
         id: deployment
         uses: actions/deploy-pages@v4
