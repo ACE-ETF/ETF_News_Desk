@@ -46,6 +46,7 @@ class SiteAPI:
         headers = {"Content-Type": "application/json", "Cache-Control": "no-cache"}
         if self.key:
             headers["X-Collector-Key"] = self.key
+            headers["OAI-Sites-Authorization"] = "Bearer " + self.key
         raw = None if body is None else json.dumps(body, ensure_ascii=False).encode()
         req = urllib.request.Request(self.origin + path, data=raw, headers=headers)
         try:
