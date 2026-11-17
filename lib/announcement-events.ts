@@ -15,6 +15,7 @@ function amount(text:string){
  const unit=m[2]==='조'?1e12:1e8;
  return {value:Number(m[1].replace(/,/g,''))*unit+Number((m[3]||'0').replace(/,/g,''))*1e8,unit:m[3]?1e8:unit};
 }
+const marketShare=(text:string)=>text.match(/시장(?:점유율)?(\d+(?:\.\d+)?)%/)?.[1];
 const compatibleAmount=(x:ReturnType<typeof amount>,y:ReturnType<typeof amount>)=>!x||!y||x.value===y.value||x.unit===1e12&&Number.isInteger(x.value/x.unit)&&y.value>=x.value&&y.value<x.value*1.1;
 
 // Resolve shortened headlines against a verified, same-day announcement. The
@@ -25,12 +26,12 @@ export function announcementEventKeys(articles:Article[]):Map<string,string>{
  const assign=(id:string,candidates:string[])=>{const unique=[...new Set(candidates)];if(unique.length===1)keys.set(id,unique[0])};
 
  // Aggregate covered-call assets are distinct from the assets of one fund.
- const aggregate=rows.filter(r=>/ETF/.test(r.title)&&/커버드콜/.test(r.title)&&(/순자산/.test(r.title)||!!amount(r.title))&&!/비교|전망|목표|신규상장|출시|청산|순유출/.test(r.title));
+ const aggregate=rows.filter(r=>/ETF/.test(r.title)&&/커버드콜/.test(r.title)&&(/순자산/.test(r.title)||!!amount(r.title)||!!marketShare(r.title)&&/액티브커버드콜|커버드콜액티브/.test(r.title))&&!/비교|전망|목표|신규상장|출시|청산|순유출/.test(r.title));
  const anchors=aggregate.filter(r=>r.body&&/액티브커버드콜|커버드콜액티브/.test(r.title+r.body)&&/ETF\d+종/.test(r.body+r.title)&&amount(r.body));
  for(const r of aggregate){
   if(/(?:200|150|미국|배당|위클리|데일리|타겟|레버리지|인버스).*커버드콜/.test(r.title))continue;
   const count=r.title.match(/ETF(\d+)종/)?.[1];
-  const signatures=anchors.filter(x=>r.issuer===x.issuer&&near(r.a,x.a)&&(!count||count===(x.body+x.title).match(/ETF(\d+)종/)?.[1])&&compatibleAmount(amount(r.title),amount(x.body))).map(x=>['announcement-aum',x.issuer,x.a.date,(x.body+x.title).match(/ETF(\d+)종/)![1],amount(x.body)!.value].join(':'));
+  const signatures=anchors.filter(x=>r.issuer===x.issuer&&near(r.a,x.a)&&(!count||count===(x.body+x.title).match(/ETF(\d+)종/)?.[1])&&compatibleAmount(amount(r.title),amount(x.body))&&(!marketShare(r.title)||marketShare(r.title)===marketShare(x.body))).map(x=>['announcement-aum',x.issuer,x.a.date,(x.body+x.title).match(/ETF(\d+)종/)![1],amount(x.body)!.value].join(':'));
   // A non-active generic title needs a matching amount and a verified aggregate.
   if(/액티브/.test(r.title)||count||amount(r.title))assign(r.a.id,signatures);
  }

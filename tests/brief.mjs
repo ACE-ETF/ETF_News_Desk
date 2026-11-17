@@ -305,3 +305,9 @@ assert.deepEqual(summaryPoints('순자산 4조917억원 돌파. 연초 순매수
 assert.deepEqual(summaryPoints('시장 점유율은 52%이다. ETF 2종을 상장했다.'),['시장 점유율은 52%','ETF 2종을 상장']);
 assert.deepEqual(summaryPoints('본문 발췌: ETF 2종을 상장했다.'),['본문 발췌: ETF 2종을 상장했다']);
 console.log('PASS: seven headline aliases compress to three verified announcements; count/product/value/direction/date guards; concise fact bullets preserve figures');
+
+const shareAlias=announcementArticle('ann15','미래에셋운용, 액티브 커버드콜 ETF 시장 52% 점유…자금 유입 절반 흡수');
+assert.equal(groupStories([...announcementFixture,shareAlias]).length,3);
+const otherShare=announcementArticle('ann16','미래에셋운용, 액티브 커버드콜 ETF 시장 53% 점유');
+assert(!groupStories([...announcementFixture,otherShare]).some(g=>[g.a,...g.others].some(a=>a.id==='ann1')&&[g.a,...g.others].some(a=>a.id==='ann16')));
+console.log('PASS: verified aggregate market-share alias; different percentage remains separate');
