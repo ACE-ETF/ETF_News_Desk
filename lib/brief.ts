@@ -1,4 +1,5 @@
 import {launchEventKeys} from './launch-events';
+import {announcementEventKeys} from './announcement-events';
 import {fundFlowAnnouncementKeys} from './fund-flow-announcements';
 import {isBondAumStory,bondMilestoneKeys} from './bond-milestones';
 import {canJoinUnspecifiedFlow} from './overseas-events';
@@ -102,6 +103,7 @@ export function performanceEventKeys(articles:Article[]):Map<string,string>{
 export function groupStories(articles:Article[],enabled=true):Story[]{
  const batteryAnchors = new Set(articles.filter(a => /전고체배터리ESS\s*TOP2플러스/i.test(a.title)).map(batteryMilestone).filter(Boolean));
  const launchKeys=launchEventKeys(articles);
+ const announcementKeys=announcementEventKeys(articles);
  const performanceKeys=performanceEventKeys(articles);
  const flowAnnouncementKeys=fundFlowAnnouncementKeys(articles);
  const distributionKeys=distributionEventKeys(articles);
@@ -112,8 +114,23 @@ export function groupStories(articles:Article[],enabled=true):Story[]{
  const taxGuideAnchors = new Set(articles.filter(a => /절세.{0,12}가이드\s*북/.test(a.title) && /발간|출시|공개/.test(a.title)).map(taxGuideKey).filter(Boolean));
  const result:Story[]=[];
  for(const a of articles){
-  const found=enabled?result.find(x=>{const la=launchKeys.get(a.id),lb=launchKeys.get(x.a.id);if(la&&lb)return la===lb;const fa=flowAnnouncementKeys.get(a.id),fb=flowAnnouncementKeys.get(x.a.id);if(fa&&fb)return fa===fb;const pa=performanceKeys.get(a.id),pb=performanceKeys.get(x.a.id);if(pa&&pb)return pa===pb;const seminar=aceAllocationSeminarKey(a);if(seminar&&seminar===aceAllocationSeminarKey(x.a))return true;const comic=kiwoomComicKey(a);if(comic&&comic===kiwoomComicKey(x.a))return true;const battery=batteryMilestone(a);if(battery&&batteryAnchors.has(battery)&&battery===batteryMilestone(x.a))return true;const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
+  const found=enabled?result.find(x=>{const aa=announcementKeys.get(a.id),ab=announcementKeys.get(x.a.id);if(aa&&ab)return aa===ab;const la=launchKeys.get(a.id),lb=launchKeys.get(x.a.id);if(la&&lb)return la===lb;const fa=flowAnnouncementKeys.get(a.id),fb=flowAnnouncementKeys.get(x.a.id);if(fa&&fb)return fa===fb;const pa=performanceKeys.get(a.id),pb=performanceKeys.get(x.a.id);if(pa&&pb)return pa===pb;const seminar=aceAllocationSeminarKey(a);if(seminar&&seminar===aceAllocationSeminarKey(x.a))return true;const comic=kiwoomComicKey(a);if(comic&&comic===kiwoomComicKey(x.a))return true;const battery=batteryMilestone(a);if(battery&&batteryAnchors.has(battery)&&battery===batteryMilestone(x.a))return true;const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
   if(found){if(![found.a,...found.others].some(b=>b.id===a.id||b.url===a.url)){if(a.summaryKind==='summary'&&found.a.summaryKind!=='summary'||a.summary&&!found.a.summary){found.others.push(found.a);found.a=a}else found.others.push(a)}}else result.push({a,others:[]});
  }
- return result;
+ if(!enabled)return result;
+ // A verified representative may be encountered after two partial groups.
+ // Reconcile only groups whose members resolve to one unambiguous announcement.
+ const merged:Story[]=[];const byAnnouncement=new Map<string,Story>();
+ for(const story of result){
+  const members=[story.a,...story.others];
+  const signatures=[...new Set(members.map(a=>announcementKeys.get(a.id)).filter((s):s is string=>!!s))];
+  const key=signatures.length===1?signatures[0]:'';const prior=key?byAnnouncement.get(key):undefined;
+  if(!prior){merged.push(story);if(key)byAnnouncement.set(key,story);continue}
+  for(const a of members){
+   if([prior.a,...prior.others].some(b=>b.id===a.id||b.url===a.url))continue;
+   if(a.summaryKind==='summary'&&prior.a.summaryKind!=='summary'||a.summary&&!prior.a.summary){prior.others.push(prior.a);prior.a=a}else prior.others.push(a);
+  }
+ }
+ return merged;
 }
+

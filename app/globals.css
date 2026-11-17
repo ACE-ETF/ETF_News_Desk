@@ -70,3 +70,6 @@ html[data-theme=dark] .error{background:#35281c;border-color:#755335;color:#f4cd
 html[data-theme=dark] .publicationNotice{background:#352b13;border-color:#80641d;color:#ffe29a}
 html[data-theme=dark] .publicationNoticeDot{background:#facc15;box-shadow:0 0 0 3px #594714}
 @media(max-width:760px){.publicationNotice{padding:12px 13px}.publicationNotice p{font-size:12px}}
+
+
+.summaryPoints{margin:4px 0 0;padding-left:15px;color:var(--theme-muted,#4e6e89);font-size:12px;line-height:1.75;word-break:keep-all;overflow-wrap:anywhere}.summaryPoints li{padding-left:1px;margin:1px 0}.summaryPoints li::marker{color:var(--theme-accent,#3986ba)}.detailContent>.summaryPoints{margin-bottom:11px}@media(max-width:760px){.summaryPoints{font-size:12px;line-height:1.75}}

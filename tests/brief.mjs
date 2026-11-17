@@ -3,7 +3,8 @@ const url=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{co
 const bondMilestonesURL=url(fs.readFileSync('lib/bond-milestones.ts','utf8'));
 const insightURL=url(fs.readFileSync('lib/insights.ts','utf8'));const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL).replaceAll('./insights',insightURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const overseasURL=url(fs.readFileSync('lib/overseas-events.ts','utf8'));const statementURL=url(fs.readFileSync('lib/statement-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8').replaceAll('./statement-events',statementURL).replaceAll('./overseas-events',overseasURL));const flowAnnouncementURL=url(fs.readFileSync('lib/fund-flow-announcements.ts','utf8'));
 const launchURL=url(fs.readFileSync('lib/launch-events.ts','utf8'));
-const briefURL=url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./launch-events',launchURL).replaceAll('./fund-flow-announcements',flowAnnouncementURL).replaceAll('./bond-milestones',bondMilestonesURL).replaceAll('./insights',insightURL).replaceAll('./ranking',rankURL).replaceAll('./overseas-events',overseasURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL));const {briefStories,groupStories}=await import(briefURL);
+const announcementURL=url(fs.readFileSync('lib/announcement-events.ts','utf8'));
+const briefURL=url(fs.readFileSync('lib/brief.ts','utf8').replaceAll('./announcement-events',announcementURL).replaceAll('./launch-events',launchURL).replaceAll('./fund-flow-announcements',flowAnnouncementURL).replaceAll('./bond-milestones',bondMilestonesURL).replaceAll('./insights',insightURL).replaceAll('./ranking',rankURL).replaceAll('./overseas-events',overseasURL).replaceAll('./story-events',eventsURL).replaceAll('./distribution-events',distributionURL));const {briefStories,groupStories}=await import(briefURL);
 const make=(i,title,category)=>({a:{id:String(i),title,category,published:'2026-10-29T00:00:00Z',source:'검증',url:'https://example.com/'+i,brands:[],date:'2026-10-29'},others:[]});
 const stories=[...Array.from({length:12},(_,i)=>make(i,'ETF 순자산 '+(i+1)+'조원 돌파','수급·성과')),...Array.from({length:5},(_,i)=>make(20+i,'운용사 '+i+' ETF 총보수 인하','상품·전략')),make(30,'ETF 특별배당 지급','배당·분배'),make(31,'ETF 신규 상장','신규 상장'),make(32,'ETF 거래정지 안내','제도·시장'),make(33,'ETF 분배금 지급 안내','배당·분배'),make(34,'ETF 경품 이벤트','마케팅')].sort((a,b)=>compareImportance(a.a,b.a));
 const selected=briefStories(stories);assert.equal(selected.length,10);assert(selected.some(s=>s.a.category==='제도·시장'));assert(selected.filter(s=>s.a.category==='수급·성과').length<=4);assert(!selected.some(s=>['33','34'].includes(s.a.id)));assert.equal(stories.length,22);
@@ -270,3 +271,37 @@ const {category:classifyCategory}=await import(classifyURL);
 for(const title of ['"나스닥100에 우주·반도체까지"…우리운용, 혁신 ETF 펀드 출시',"우리운용, '나스닥100 ETF+혁신 트렌드 ETF' 담는 펀드 출시"]){assert.equal(classifyCategory(title),'상품·전략')}
 assert.equal(classifyCategory('우리운용, 반도체 ETF 신규 상장'),'신규 상장');
 console.log('PASS: ETF-investing fund launches use product/strategy; actual ETF listings remain listings');
+
+
+// One announcement, several headline aliases: preserve every source and prefer
+// the verified summary, regardless of incoming importance/time order.
+const announcementArticle=(id,title,summary='',category='상품·전략')=>({...make(id,title,category).a,date:'2026-11-17',published:'2026-11-17T02:00:00Z',...(summary?{summary,summaryKind:'summary'}:{})});
+const announcementFixture=[
+ announcementArticle('ann1','미래에셋운용, TIGER 액티브 커버드콜 ETF 순자산 4조 돌파','순자산 4조917억원 돌파·국내 액티브 커버드콜 시장 점유율 52%. TIGER ETF 4종 합산, 연초 이후 개인 누적 순매수 3조467억원.','수급·성과'),
+ announcementArticle('ann2','미래에셋자산운용, 액티브 커버드콜 ETF 합산 순자산 4조원 기록','','수급·성과'),
+ announcementArticle('ann3','KB운용, 美 초대형 10개 기업 투자 ETF 등 2종 출시','미국 초대형주·만기 회사채 ETF 2종, 11/17 상장. RISE 미국초대형주TOP10: 미국 시총 상위 10개 기업 투자. RISE 27-11 회사채(AA-이상)액티브: 2027년 10~12월 만기 우량 회사채 투자.','신규 상장'),
+ announcementArticle('ann4',"'RISE 미국초대형주TOP10 ETF' 출시…美 시총 상위 10개 기업 투자",'','신규 상장'),
+ announcementArticle('ann5','한투운용, ACE 글로벌반도체TOP4 Plus ETF 리밸런싱 진행'),
+ announcementArticle('ann6','한투운용 ACE 글로벌반도체 ETF 리밸런싱…삼전 늘리고 SK하닉 줄이고'),
+ announcementArticle('ann7','한투운용 반도체 ETF 리밸런싱…삼전 늘리고 하닉 줄여','삼성전자 비중 확대(3.43%→19.75%)·SK하이닉스 축소(17.58%→3.29%). ACE 글로벌반도체TOP4 Plus의 11/5 정기 리밸런싱, 편입·제외 없이 비중 조정.'),
+];
+for(const input of [announcementFixture,[...announcementFixture].reverse()]){
+ const groups=groupStories(input);assert.equal(groups.length,3);assert.deepEqual(groups.map(g=>g.others.length+1).sort(),[2,2,3]);
+ assert(groups.every(g=>g.a.summaryKind==='summary'));assert.equal(new Set(groups.flatMap(g=>[g.a,...g.others]).map(a=>a.id)).size,7);
+}
+const separateAnnouncements=[
+ announcementArticle('ann8','미래에셋운용, 액티브 커버드콜 ETF 3종 순자산 4조 돌파'),
+ announcementArticle('ann9','미래에셋운용, TIGER 배당커버드콜 ETF 순자산 4조 돌파'),
+ announcementArticle('ann10','미래에셋운용, 액티브 커버드콜 ETF 순자산 5조 돌파'),
+ announcementArticle('ann11',"'RISE 미국초대형주TOP20 ETF' 신규 상장"),
+ announcementArticle('ann12','한투운용, ACE 코리아반도체TOP4 ETF 리밸런싱 진행'),
+ announcementArticle('ann13','한투운용 반도체 ETF 리밸런싱…삼전 줄이고 하닉 늘리고'),
+ {...announcementFixture[5],id:'ann14',date:'2026-11-18',published:'2026-11-18T02:00:00Z'},
+];
+const checked=groupStories([...announcementFixture,...separateAnnouncements]);
+for(const a of separateAnnouncements)assert(!checked.some(g=>[g.a,...g.others].some(x=>x.id===a.id)&&[g.a,...g.others].some(x=>['ann1','ann3','ann7'].includes(x.id))));
+const digestURL=url(fs.readFileSync('lib/digest.ts','utf8'));const {summaryPoints}=await import(digestURL);
+assert.deepEqual(summaryPoints('순자산 4조917억원 돌파. 연초 순매수 3조467억원 기록.'),['순자산 4조917억원 돌파','연초 순매수 3조467억원 기록']);
+assert.deepEqual(summaryPoints('시장 점유율은 52%이다. ETF 2종을 상장했다.'),['시장 점유율은 52%','ETF 2종을 상장']);
+assert.deepEqual(summaryPoints('본문 발췌: ETF 2종을 상장했다.'),['본문 발췌: ETF 2종을 상장했다']);
+console.log('PASS: seven headline aliases compress to three verified announcements; count/product/value/direction/date guards; concise fact bullets preserve figures');
