@@ -29,6 +29,7 @@ function metrics(text:string):Metric[]{
 // AUM in the same announcement. A generic title joins only one compatible anchor;
 // a shared issuer/theme alone is never enough to infer a product or an amount.
 export function fundFlowAnnouncementKeys(articles:Article[]):Map<string,string>{
+ const mixedKeys=mixedIndexFlowKeys(articles);
  const records=articles.flatMap(a=>{
   const title=compact(a.title),names=issuers.filter(([r])=>r.test(a.title)).map(([,name])=>name);
   if(names.length!==1||!/ETF|상장지수펀드/i.test(title)||!/커버드콜/.test(title))return [];
@@ -40,7 +41,7 @@ export function fundFlowAnnouncementKeys(articles:Article[]):Map<string,string>{
   return [{a,title,issuer:names[0],named:[...new Set(named)],bodyNames:[...new Set(bodyNames)],titleMetrics:metrics(title),bodyMetrics:metrics(body),period:period(title)}];
  });
  const anchors=records.filter(r=>r.bodyNames.length===1&&r.bodyNames[0].startsWith(r.issuer)&&r.bodyMetrics.some(m=>m.kind==='inflow'&&m.period==='ytd'&&m.currency==='KRW'));
- const keys=new Map<string,string>();
+ const keys=new Map<string,string>(mixedKeys);
  for(const r of records){
   const candidates=anchors.filter(anchor=>{
    if(r.a.date!==anchor.a.date||r.issuer!==anchor.issuer||Math.abs(Date.parse(r.a.published)-Date.parse(anchor.a.published))>18*3600000)return false;
@@ -59,6 +60,47 @@ export function fundFlowAnnouncementKeys(articles:Article[]):Map<string,string>{
    return ['fund-flow',a.a.date,a.bodyNames[0],'ytd',flow.value].join(':');
   }))];
   if(signatures.length===1)keys.set(r.a.id,signatures[0]);
+ }
+ return keys;
+}
+
+// Normalize the aggregate US equity-index/bond pair separately from a single
+// S&P500 or Nasdaq fund. Missing periods resolve only to one nearby event.
+function mixedIndexFlowKeys(articles:Article[]):Map<string,string>{
+ const amount=(s:string)=>{
+  const m=s.match(/(\d[\d,]*(?:\.\d+)?)\s*(조|억)(?:\s*(\d[\d,]*)\s*억)?/);
+  if(!m)return undefined;
+  const tail=s.slice((m.index||0)+m[0].length);
+  if(/^\s*(?:달러|USD|유로|위안)/i.test(tail))return undefined;
+  return Number(m[1].replace(/,/g,''))*(m[2]==='조'?1e12:1e8)+Number((m[3]||'0').replace(/,/g,''))*1e8;
+ };
+ const records=articles.flatMap(a=>{
+  const title=compact(a.title).replace(/美/g,'미국');
+  const names=issuers.filter(([r])=>r.test(a.title)).map(([,name])=>name);
+  if(names.length!==1||!/ETF/.test(title)||!/미국/.test(title)||!/(?:채권|미국채)혼합(?:형)?/.test(title)||!/유입/.test(title))return [];
+  if(/유출|순매수|개인|순자산|수익률|목표|예상|전망|비교|이모저모|증권톡톡|레버리지|인버스|커버드콜/.test(title))return [];
+  const count=title.match(/ETF(?:에)?(\d+)종/)?.[1];
+  if(count&&count!=='2')return [];
+  if(!count&&!/미국(?:대표)?지수/.test(title))return [];
+  if(/S&P|나스닥/.test(title)&&!(/S&P/.test(title)&&/나스닥/.test(title)))return [];
+  const value=amount(title);if(value===undefined)return [];
+  const horizon=period(title);if(horizon&&horizon!=='ytd')return [];
+  const reference=(title.match(/\d{1,2}월\d{1,2}일(?:기준)?/)?.[0]||'');
+  const body=a.summaryKind==='summary'?compact(a.summary||''):'';
+  const exact=/2종/.test(body)&&/연초|올해/.test(body)&&/유입/.test(body)?amount(body):undefined;
+  return [{a,issuer:names[0],value,horizon,reference,exact}];
+ });
+ const keys=new Map<string,string>();
+ for(const r of records){
+  const nearby=records.filter(x=>x.issuer===r.issuer&&x.a.date===r.a.date&&Math.abs(Date.parse(x.a.published)-Date.parse(r.a.published))<=18*3600000);
+  const exactValues=[...new Set(nearby.filter(x=>x.exact!==undefined&&x.value===r.value).map(x=>x.exact!))];
+  if(exactValues.length>1)continue;
+  const canonical=exactValues[0]??r.value;
+  const candidates=nearby.filter(x=>x.value===r.value||x.value===canonical||x.exact===canonical);
+  const periods=new Set(candidates.map(x=>x.horizon).filter(Boolean));
+  const references=new Set(candidates.map(x=>x.reference).filter(Boolean));
+  if(!r.horizon&&periods.size!==1||!r.reference&&references.size>1)continue;
+  keys.set(r.a.id,['mixed-index-flow',r.issuer,r.a.date,r.horizon||[...periods][0],canonical,r.reference||[...references][0]||''].join(':'));
  }
  return keys;
 }

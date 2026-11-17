@@ -1,5 +1,7 @@
 import {KR_HOLIDAYS} from "./holidays";
 export function isNewListing(t:string){
+ // A fund investing in ETFs is a fund launch, not an exchange listing.
+ if(/ETF\s*펀드|ETFs?['’”"]?\s*(?:에\s*투자하는|담는|담은|편입하는|활용하는)\s*펀드|ETF[^.!?…]{0,40}(?:재간접\s*펀드|펀드\s*출시)/i.test(t)&&!/(?:ETF|상장지수펀드)\s*(?:신규\s*)?상장/.test(t))return false;
  if(/\b(?:ETF|exchange.traded fund)s?\b/i.test(t)&&(/\b(?:launch(?:es|ed|ing)?|debut(?:s|ed)?|introduc(?:e|es|ed|ing))\b.{0,65}\bETFs?\b/i.test(t)||/\bETFs?\b.{0,45}\b(?:launch(?:es|ed|ing)?|debut(?:s|ed)?)\b/i.test(t)))return true;
  if(/이벤트|경품|증정|캠페인|프로모션|세미나|플랫폼|홈페이지|웹사이트|서비스|앱\s|애플리케이션|보고서|리포트|계좌|혜택|콘텐츠|기능|가이드|브랜드\s*출시/.test(t))return false;
  if(/(?:담은|보유|편입|투자한|투자하는).*(?:기업공개|IPO|신규\s*상장)/i.test(t)&&!/(?:ETF|상장지수펀드).{0,8}출시/.test(t))return false;

@@ -242,3 +242,31 @@ for(const title of ['KB운용, 회사채·미국주식 ETF 2종 18일 신규 상
 const otherLaunch={...launchAnchor,id:'other-launch',url:'https://example.com/other-launch',title:launchAnchor.title.replace('17일','18일'),summary:launchAnchor.summary.replace('17일','18일')};
 assert.equal(groupStories([launchAnchor,otherLaunch,launchAliases[1]]).length,3,'unknown-date coverage must not bridge two launch dates');
 console.log('PASS: verified multi-fund launch, issuer/product aliases, weekend syndication, summary representative, date/product/count conflicts and ambiguity');
+
+const mixedAnchor={...make('mixed-anchor','한투운용 ACE 미국지수 채권혼합 ETF, 연초 이후 자금 1조 원 유입','수급·성과').a,summary:'11월 13일 기준 ACE 미국 대표지수 채권혼합 ETF 2종의 연초 이후 유입액은 1조39억 원이다. S&P500형에 5,492억 원, 나스닥100형에 4,547억 원이 유입됐다.',summaryKind:'summary'};
+const mixedTitles=[
+ '한투운용, 미국 대표지수 채권혼합형 ETF 2종 올해 자금유입액 1조원 돌파',
+ "'ACE 美 대표지수 채권혼합형 ETF 2종' 올해 자금 유입액 1조원 돌파",
+ '한투운용, ACE 미국 대표지수 채권혼합 ETF 2종에 1조원 유입',
+ '한투운용, 美대표지수 채권혼합형 ETF에 연초 이후 1조원 유입',
+ '한투운용 미국채혼합형 ETF 2종, 연초 이후 순유입 1조 돌파',
+ '한투운용, 미국지수·채권혼합 ETF 2종에 1조원 유입',
+ '한투운용 ACE 미국 대표지수 채권혼합 ETF 2종 올해 1조39억원 유입'
+].map((title,i)=>make('mixed-'+i,title,'수급·성과').a);
+for(const rows of [[mixedAnchor,...mixedTitles],[...mixedTitles,mixedAnchor],[...mixedTitles].reverse().concat(mixedAnchor)]){
+ const groups=groupStories(rows);assert.equal(groups.length,1);assert.equal(groups[0].a.id,mixedAnchor.id);assert.equal(groups[0].others.length,mixedTitles.length);
+}
+for(const title of [
+ '한투운용 ACE 미국 대표지수 채권혼합 ETF 2종 하루 자금 1조원 유입',
+ '한투운용 ACE 미국 대표지수 채권혼합 ETF 2종 올해 2조원 유입',
+ '한투운용 ACE 미국 대표지수 채권혼합 ETF 3종 올해 1조원 유입',
+ '한투운용 ACE 미국 S&P500 채권혼합 ETF 올해 1조원 유입',
+ '삼성운용 미국 대표지수 채권혼합 ETF 2종 올해 1조원 유입',
+ '한투운용 ACE 미국 대표지수 채권혼합 ETF 2종 올해 1조달러 유입',
+ '한투운용 ACE 미국 대표지수 채권혼합 ETF 2종 올해 순자산 1조원',
+]){const keys=fundFlowAnnouncementKeys([mixedAnchor,make('mixed-conflict',title,'수급·성과').a]);assert.notEqual(keys.get('mixed-conflict'),keys.get(mixedAnchor.id),title);}
+console.log('PASS: aggregate index/bond flows, issuer and title aliases, exact verified amount, summary representative, source retention, metric/product/currency/period guards');
+const {category:classifyCategory}=await import(classifyURL);
+for(const title of ['"나스닥100에 우주·반도체까지"…우리운용, 혁신 ETF 펀드 출시',"우리운용, '나스닥100 ETF+혁신 트렌드 ETF' 담는 펀드 출시"]){assert.equal(classifyCategory(title),'상품·전략')}
+assert.equal(classifyCategory('우리운용, 반도체 ETF 신규 상장'),'신규 상장');
+console.log('PASS: ETF-investing fund launches use product/strategy; actual ETF listings remain listings');
