@@ -48,7 +48,9 @@ jobs:
           cache-dependency-path: source/scripts/static-news-requirements.txt
       - name: Test publication boundaries, deduplication and feed limits
         working-directory: source
-        run: python scripts/test-static-news.py -v
+        run: |
+          python scripts/test-static-news.py -v
+          python scripts/test-publication-recovery.py
       - name: Choose collection or release
         id: mode
         run: |
@@ -69,6 +71,17 @@ jobs:
           latest=pipeline.read(Path("source/_news_state/public/latest.json"),{})
           expected=pipeline.window(now,closed)
           stale=pipeline.due(now,closed) and latest.get("window")!=expected
+          # A cloud watchdog writes this bounded request through the Contents API.
+          # Push-triggered jobs do not depend on GitHub's cron scheduler.
+          if event=="push" and stale:
+              retry=pipeline.read(Path("source/ops/publication-retry.json"),{})
+              try:
+                  age=(now-pipeline.stamp(retry.get("requestedAt",""))).total_seconds()
+              except (ValueError,TypeError,AttributeError):
+                  age=-1
+              if (retry.get("windowEnd")==expected["end"] and 0<=age<=900
+                  and retry.get("mode") in {"release","stored-release"}):
+                  mode=retry["mode"];publication_mode=mode
           if mode=="stage" and stale:publication_mode="stored-release"
           state=pipeline.read(Path("source/_news_state/state.json"),pipeline.new_state())
           selected=[a for a in state["articles"].values() if expected["start"]<=a["published"]<expected["end"]]
