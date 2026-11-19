@@ -346,3 +346,6 @@ for(const title of ["앤트로픽 상장 D-1…국내 ETF 누가 먼저 담나 �
 }
 assert.equal(insightKind({title:'매일 ETF 소식 모음'}),'');
 console.log('PASS: IPO exposure and ETF strategy comparisons receive modest, non-stacked reading signals without changing the ten-story cap');
+
+assert.equal(briefStories(groupStories(parking)).length,1,'A checked representative with a shorter title must retain its grouped AUM signal');
+console.log('PASS: verified representative retains the strongest importance signal from its same-event coverage');

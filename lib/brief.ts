@@ -44,9 +44,10 @@ function isCoveredBatteryRoundup(story: Story, stories: Story[]): boolean {
   && stories.some(s => s.a.date === a.date && /ACE.*메모리반도체.*ETF.*상장/i.test(s.a.title));
 }
 export function briefStories(stories:Story[],limit=10){
- const eligible=stories.filter(s=>!sourceDateNote(s.a)&&importance(s.a).score>=20&&s.a.category!=='마케팅'&&!isCoveredBatteryRoundup(s,stories));
+ const rating=(s:Story)=>Math.max(...[s.a,...s.others].map(a=>importance(a).score));
+ const eligible=stories.filter(s=>!sourceDateNote(s.a)&&rating(s)>=20&&s.a.category!=='마케팅'&&!isCoveredBatteryRoundup(s,stories));
  const selected:Story[]=[];const counts=new Map<string,number>();
- const add=(story:Story)=>{if(selected.length>=limit||selected.includes(story))return false;if(isCryptoStory(story.a)&&selected.some(s=>isCryptoStory(s.a)))return false;const n=counts.get(story.a.category)||0;if(n>=Math.ceil(limit*0.4)&&importance(story.a).level!=='상')return false;selected.push(story);counts.set(story.a.category,n+1);return true};
+ const add=(story:Story)=>{if(selected.length>=limit||selected.includes(story))return false;if(isCryptoStory(story.a)&&selected.some(s=>isCryptoStory(s.a)))return false;const n=counts.get(story.a.category)||0;if(n>=Math.ceil(limit*0.4)&&rating(story)<60)return false;selected.push(story);counts.set(story.a.category,n+1);return true};
  // Use the incoming importance/time order; no reserved slots for an editorial theme.
  for(const story of eligible)add(story);
  return selected;
