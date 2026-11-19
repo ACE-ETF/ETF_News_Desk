@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: '10 4,10,16,22 * * *'
     - cron: '40 22 * * 0-4'
+    # Independent stored-only recovery checks if the primary cron is delayed.
+    - cron: '47 22 * * 0-4'
+    - cron: '17 23 * * 0-4'
   workflow_dispatch:
     inputs:
       mode:
@@ -50,11 +53,26 @@ jobs:
         id: mode
         run: |
           python - <<'PY'
-          import os
+          import importlib.util, os
+          from pathlib import Path
+          spec=importlib.util.spec_from_file_location("pipeline","source/scripts/static-news.py")
+          pipeline=importlib.util.module_from_spec(spec);spec.loader.exec_module(pipeline)
           event=os.environ["EVENT_NAME"]
-          mode="stage" if os.environ.get("EVENT_SCHEDULE")=="10 4,10,16,22 * * *" else "release"
-          if event=="workflow_dispatch":mode=os.environ.get("INPUT_MODE") or "stored-release"
-          with open(os.environ["GITHUB_OUTPUT"],"a") as f:f.write("mode="+mode+"\n")
+          schedule=os.environ.get("EVENT_SCHEDULE", "")
+          mode="stored-release"
+          if event=="schedule":
+              if schedule=="10 4,10,16,22 * * *":mode="stage"
+              elif schedule=="40 22 * * 0-4":mode="release"
+          elif event=="workflow_dispatch":mode=os.environ.get("INPUT_MODE") or "stored-release"
+          publication_mode=mode
+          now=pipeline.datetime.now(pipeline.UTC);closed=pipeline.holidays()
+          latest=pipeline.read(Path("source/_news_state/public/latest.json"),{})
+          expected=pipeline.window(now,closed)
+          stale=pipeline.due(now,closed) and latest.get("window")!=expected
+          if mode=="stage" and stale:publication_mode="stored-release"
+          with open(os.environ["GITHUB_OUTPUT"],"a") as f:
+              f.write("mode="+mode+"\npublication_mode="+publication_mode+"\n")
+          pipeline.log(collectionMode=mode,publicationMode=publication_mode,recoveringStaleEdition=stale)
           PY
       - name: Claim the round before any feed request
         working-directory: source
@@ -84,17 +102,17 @@ jobs:
             git -C _news_state push origin HEAD:news-data
           fi
       - uses: actions/cache@v4
-        if: steps.mode.outputs.mode != 'stage'
+        if: steps.mode.outputs.publication_mode != 'stage'
         with:
           path: ~/.cache/etf-news
           key: etf-news-en-ko-argos-1-1
       - name: Install free CPU translation and text extraction tools
-        if: steps.mode.outputs.mode != 'stage'
+        if: steps.mode.outputs.publication_mode != 'stage'
         continue-on-error: true
         working-directory: source
         run: python -m pip install -r scripts/static-news-requirements.txt
       - name: Verify free translation model
-        if: steps.mode.outputs.mode != 'stage'
+        if: steps.mode.outputs.publication_mode != 'stage'
         continue-on-error: true
         working-directory: source
         run: |
@@ -109,7 +127,7 @@ jobs:
       - name: Prepare and publish stored articles
         working-directory: source
         env:
-          RUN_MODE: ${{ steps.mode.outputs.mode }}
+          RUN_MODE: ${{ steps.mode.outputs.publication_mode }}
         run: python scripts/static-news.py --mode "$RUN_MODE" --phase publish
       - name: Export and verify the static edition
         working-directory: source
