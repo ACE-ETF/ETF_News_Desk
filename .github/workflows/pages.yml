@@ -4,6 +4,8 @@ on:
     branches: [main]
   schedule:
     - cron: '10 4,10,16,22 * * *'
+    # Start the morning runner early; release remains gated at 07:40 KST.
+    - cron: '45 21 * * 0-4'
     - cron: '40 22 * * 0-4'
     # Independent stored-only recovery checks if the primary cron is delayed.
     - cron: '47 22 * * 0-4'
@@ -24,7 +26,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 85
     permissions:
       contents: write
     env:
@@ -51,6 +53,28 @@ jobs:
         run: |
           python scripts/test-static-news.py -v
           python scripts/test-publication-recovery.py
+      - name: Hold early morning runner until the Korean publication cutoff
+        if: github.event_name == 'schedule' && github.event.schedule == '45 21 * * 0-4'
+        timeout-minutes: 65
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import importlib.util,time
+          spec=importlib.util.spec_from_file_location("pipeline","scripts/static-news.py")
+          pipeline=importlib.util.module_from_spec(spec);spec.loader.exec_module(pipeline)
+          def wait_seconds(now,closed):
+              local=now.astimezone(pipeline.KST)
+              if not pipeline.business(local.date(),closed):return 0
+              cutoff=local.replace(hour=7,minute=40,second=0,microsecond=0)
+              return max(0,(cutoff-local).total_seconds())
+          closed=pipeline.holidays()
+          while True:
+              seconds=wait_seconds(pipeline.datetime.now(pipeline.UTC),closed)
+              if seconds<=0:break
+              if seconds>3900:raise RuntimeError("Early runner outside bounded morning window")
+              print("Waiting for 07:40 KST publication cutoff",flush=True)
+              time.sleep(min(seconds,30))
+          PY
       - name: Choose collection or release
         id: mode
         run: |
@@ -64,7 +88,7 @@ jobs:
           mode="stored-release"
           if event=="schedule":
               if schedule=="10 4,10,16,22 * * *":mode="stage"
-              elif schedule=="40 22 * * 0-4":mode="release"
+              elif schedule in {"45 21 * * 0-4","40 22 * * 0-4"}:mode="release"
           elif event=="workflow_dispatch":mode=os.environ.get("INPUT_MODE") or "stored-release"
           publication_mode=mode
           now=pipeline.datetime.now(pipeline.UTC);closed=pipeline.holidays()
