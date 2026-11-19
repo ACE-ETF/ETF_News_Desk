@@ -24,7 +24,7 @@ export function importance(a:Pick<Article,'title'|'category'>):Importance{
  // A modest standalone signal, not an extra boost stacked on launches, risks or flows.
  const insight=insightKind(a);if(insight){if(reasons.length===0)add(insight==='지수·편입 변화'?15:8,insight);else reasons.push(insight)}
  if(/수익률|성과|수익.*돌파/.test(t)&&reasons.length===0)add(8,'성과 동향');
- if(/이벤트|경품|증정|프로모션|표창|수상|캠페인|세미나/.test(t)){score-=22;reasons.push('행사·홍보성 제목 감점')}
+ if(/이벤트|경품|증정|프로모션|표창|수상|어워즈|캠페인|세미나/.test(t)){score-=22;reasons.push('행사·홍보성 제목 감점')}
  score=Math.max(0,Math.min(100,score));return {score,level:score>=60?'상':score>=35?'중':'일반',reasons:reasons.length?reasons:['일반 상품·전략 동향']};
 }
 export function compareImportance(a:Article,b:Article){return importance(b).score-importance(a).score||b.published.localeCompare(a.published)||a.id.localeCompare(b.id)}

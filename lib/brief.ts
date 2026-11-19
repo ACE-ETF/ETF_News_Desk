@@ -100,6 +100,28 @@ export function performanceEventKeys(articles:Article[]):Map<string,string>{
  return keys;
 }
 
+// Resolve narrowly identified product announcements before broader title similarity.
+// A feed may stamp a syndicated copy after midnight; a 24-hour bound keeps the
+// same release together without merging announcements from separate days.
+function productAnnouncementKey(a:Article):string {
+ const t=a.title.normalize('NFKC').replace(/[\s‘’'“”"]/g,'');
+ const checked=a.summaryKind==='summary'?(a.summary||'').replace(/\s/g,''):'';
+ if(/삼성(?:자산)?운용|KODEX/i.test(t+checked)&&/ETF/i.test(t)&&/미국머니마켓|달러파킹/.test(t)
+   &&/돌파|넘어|넘었|만에/.test(t)&&!/(?:조달러|억달러|USD|유로|EUR|\$)|레버리지|인버스|환헤지|\(H\)/i.test(t)
+   &&!(/유입|순매수|순유입|유출/.test(t)&&!/순자산/.test(t))){
+  const amount=t.match(/(\d[\d,.]*)조(?:원|돌파|넘|$)/)||t.match(/(\d[\d,.]*)조/);
+  if(amount&&!/조\d/.test(t))return 'kodex-us-money-market-aum:'+amount[1].replace(/,/g,'');
+ }
+ if(/한국투자(?:신탁)?운용|한투운용|ACE/i.test(t)&&/고배당/.test(t)
+   &&(/커버드콜/.test(t)||/ACE고배당주Plus커버드콜액티브/i.test(checked))
+   &&/특별배당|분배금|분배/.test(t)
+   &&!/삭감|중단|축소|정정|연기|정책변경/.test(t)){
+  const month=t.match(/(\d{1,2})월/)?.[1]||a.date.slice(5,7);
+  return 'ace-high-dividend-covered-call-payout:'+a.date.slice(0,4)+':'+month;
+ }
+ return '';
+}
+
 export function groupStories(articles:Article[],enabled=true):Story[]{
  const batteryAnchors = new Set(articles.filter(a => /전고체배터리ESS\s*TOP2플러스/i.test(a.title)).map(batteryMilestone).filter(Boolean));
  const launchKeys=launchEventKeys(articles);
@@ -114,7 +136,7 @@ export function groupStories(articles:Article[],enabled=true):Story[]{
  const taxGuideAnchors = new Set(articles.filter(a => /절세.{0,12}가이드\s*북/.test(a.title) && /발간|출시|공개/.test(a.title)).map(taxGuideKey).filter(Boolean));
  const result:Story[]=[];
  for(const a of articles){
-  const found=enabled?result.find(x=>{const aa=announcementKeys.get(a.id),ab=announcementKeys.get(x.a.id);if(aa&&ab)return aa===ab;const la=launchKeys.get(a.id),lb=launchKeys.get(x.a.id);if(la&&lb)return la===lb;const fa=flowAnnouncementKeys.get(a.id),fb=flowAnnouncementKeys.get(x.a.id);if(fa&&fb)return fa===fb;const pa=performanceKeys.get(a.id),pb=performanceKeys.get(x.a.id);if(pa&&pb)return pa===pb;const seminar=aceAllocationSeminarKey(a);if(seminar&&seminar===aceAllocationSeminarKey(x.a))return true;const comic=kiwoomComicKey(a);if(comic&&comic===kiwoomComicKey(x.a))return true;const battery=batteryMilestone(a);if(battery&&batteryAnchors.has(battery)&&battery===batteryMilestone(x.a))return true;const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
+  const found=enabled?result.find(x=>{const productA=productAnnouncementKey(a),productB=productAnnouncementKey(x.a);if(productA&&productB&&Math.abs(Date.parse(a.published)-Date.parse(x.a.published))<=24*3600000){const deadline=(t:string)=>t.match(/(\d{1,2})일까지/)?.[1];const da=deadline(a.title),db=deadline(x.a.title);if(da&&db&&da!==db)return false;return productA===productB;}const aa=announcementKeys.get(a.id),ab=announcementKeys.get(x.a.id);if(aa&&ab)return aa===ab;const la=launchKeys.get(a.id),lb=launchKeys.get(x.a.id);if(la&&lb)return la===lb;const fa=flowAnnouncementKeys.get(a.id),fb=flowAnnouncementKeys.get(x.a.id);if(fa&&fb)return fa===fb;const pa=performanceKeys.get(a.id),pb=performanceKeys.get(x.a.id);if(pa&&pb)return pa===pb;const seminar=aceAllocationSeminarKey(a);if(seminar&&seminar===aceAllocationSeminarKey(x.a))return true;const comic=kiwoomComicKey(a);if(comic&&comic===kiwoomComicKey(x.a))return true;const battery=batteryMilestone(a);if(battery&&batteryAnchors.has(battery)&&battery===batteryMilestone(x.a))return true;const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
   if(found){if(![found.a,...found.others].some(b=>b.id===a.id||b.url===a.url)){if(a.summaryKind==='summary'&&found.a.summaryKind!=='summary'||a.summary&&!found.a.summary){found.others.push(found.a);found.a=a}else found.others.push(a)}}else result.push({a,others:[]});
  }
  if(!enabled)return result;

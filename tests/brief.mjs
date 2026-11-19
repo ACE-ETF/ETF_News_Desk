@@ -311,3 +311,32 @@ assert.equal(groupStories([...announcementFixture,shareAlias]).length,3);
 const otherShare=announcementArticle('ann16','미래에셋운용, 액티브 커버드콜 ETF 시장 53% 점유');
 assert(!groupStories([...announcementFixture,otherShare]).some(g=>[g.a,...g.others].some(a=>a.id==='ann1')&&[g.a,...g.others].some(a=>a.id==='ann16')));
 console.log('PASS: verified aggregate market-share alias; different percentage remains separate');
+
+// Morning editions contain syndicated headlines on both sides of midnight.
+const morning=(i,title,extra={})=>({...make(i,title,'수급·성과').a,date:'2026-11-18',published:'2026-11-18T01:30:00Z',...extra});
+const parking=[
+ morning(1901,"증시 변동성에 '달러 파킹' 인기…삼성 '미국머니마켓 ETF' 1조 돌파",{summaryKind:'summary',summary:'KODEX 미국머니마켓액티브 순자산 1조474억원으로 1조원 돌파.'}),
+ morning(1902,'삼성자산운용, KODEX 미국머니마켓액티브 ETF 순자산 1조 돌파'),
+ morning(1903,'삼성자산운용, 증시 변동성에 달러 파킹형 ETF 부각… 순자산 1조원 돌파'),
+ morning(1904,"삼성운용 '미국머니마켓 ETF', 상장 1년 6개월 만에 순자산 1조원 돌파",{date:'2026-11-19',published:'2026-11-18T20:24:00Z'}),
+ morning(1905,'삼성운용 미국머니마켓 ETF, 출시 1년 반 만에 1조원')];
+assert.equal(groupStories(parking).length,1);
+assert.equal(groupStories([...parking].reverse()).length,1);
+assert.equal(groupStories(parking)[0].a.id,'1901');
+for(const different of [
+ morning(1910,'삼성운용 미국머니마켓 ETF 순자산 2조원 돌파'),
+ morning(1911,'삼성운용 미국머니마켓 ETF 순자산 1조원 돌파',{date:'2026-11-20',published:'2026-11-20T01:30:00Z'}),
+ morning(1912,'삼성운용 미국머니마켓 ETF 순유입 1조원 돌파')
+])assert.equal(groupStories([parking[0],different]).length,2);
+const payouts=[
+ morning(1920,'한투운용, ACE 고배당주 ETF 26일까지 매수 시 특별배당 반영',{summaryKind:'summary',summary:'ACE 고배당주Plus커버드콜액티브 11월 분배금에 삼성전자 특별배당 반영.'}),
+ morning(1921,'한투운용, ACE 고배당주Plus커버드콜액티브 ETF 11월 분배에 삼전 특별배당 반영'),
+ morning(1922,"한투운용, 고배당주 커버드콜 ETF 분배금에 삼성전자 특별배당 반영")];
+assert.equal(groupStories(payouts).length,1);
+assert.equal(groupStories([...payouts].reverse()).length,1);
+assert.equal(groupStories([payouts[0],morning(1923,'한투운용 ACE 고배당주 ETF 11월 분배금 지급')]).length,2);
+assert.equal(groupStories([payouts[0],morning(1924,'한투운용 ACE 고배당주Plus커버드콜액티브 ETF 분배금 중단')]).length,2);
+const classify=await import(classifyURL);
+assert(!classify.isNewListing(parking[4].title));
+assert.equal(classify.category('[2026 ETF 어워즈] 넥스트 리더는 하나운용…3년 만에 순자산 4조 돌파'),'마케팅');
+console.log('PASS: money-market milestone and verified special-payout aliases; midnight copies, amount, metric, date and distinct-product guards; retrospective launch and awards classification');
