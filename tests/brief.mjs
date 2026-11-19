@@ -340,3 +340,9 @@ const classify=await import(classifyURL);
 assert(!classify.isNewListing(parking[4].title));
 assert.equal(classify.category('[2026 ETF 어워즈] 넥스트 리더는 하나운용…3년 만에 순자산 4조 돌파'),'마케팅');
 console.log('PASS: money-market milestone and verified special-payout aliases; midnight copies, amount, metric, date and distinct-product guards; retrospective launch and awards classification');
+
+for(const title of ["앤트로픽 상장 D-1…국내 ETF 누가 먼저 담나 경쟁 본격화","[미국 ETF 히든 챔피언] 엔비디아 낮추고 AI 병목만 집중 베팅","[ETF 시황] 휴머노이드 ETF 10%↑ vs SK하이닉스 인버스 8%↓"]){
+ assert(importanceForTest(title)>=20&&importanceForTest(title)<35);
+}
+assert.equal(insightKind({title:'매일 ETF 소식 모음'}),'');
+console.log('PASS: IPO exposure and ETF strategy comparisons receive modest, non-stacked reading signals without changing the ten-story cap');

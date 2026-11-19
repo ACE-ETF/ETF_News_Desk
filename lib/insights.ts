@@ -4,7 +4,9 @@ export function insightKind(a:Pick<Article,'title'>):string{
  const t=a.title;
  if(!/ETF|상장지수펀드|exchange.traded fund/i.test(t))return '';
  if(/산업(?:재|분류).*이동|업종.*(?:재분류|분류.*변경)|지수.*(?:개편|재편|편입|편출|변경)|(?:편입|편출).*지수|ETF.*(?:리밸런싱|편입.*변화)|index.*(?:reclassif|rebalanc|reconstitut)/i.test(t))return '지수·편입 변화';
- if(/비상장|프런티어|(?:앤트로픽|앤스로픽|Anthropic).*(?:담은|편입)|private.market|pre.IPO|private.equity/i.test(t))return '투자 아이디어';
+ if(/비상장|프런티어|(?:앤트로픽|앤스로픽|Anthropic).*(?:담|편입|신속|레버리지|상장|IPO)|private.market|pre.IPO|private.equity/i.test(t))return '투자 아이디어';
+ if(/ETF\s*히든\s*챔피언|ETF\s*(?:vs|대)\s*ETF|ETFvsETF|ETF.*병목/i.test(t))return '투자 아이디어';
+ if(/\[ETF\s*시황\]/.test(t)&&/[↑↓%]/.test(t))return '산업·업종 변화';
  if(/순환매|업종.*차별화|반도체.*주춤.*(?:뷰티|화장품)|섹터.*(?:교체|전환)|sector rotation/i.test(t))return '산업·업종 변화';
  if(/글로벌|세계|global/i.test(t)&&/운용자산|운용사|시장.*\d+위|경쟁.*구도|asset manager/i.test(t))return '운용업계 분석';
  if(/방어주.{0,10}파킹.*ETF|ETF.*현금.{0,12}(?:투자|버는)|ETF\s*시장.*개별\s*종목.*(?:주가|흔들)/.test(t))return '오피니언·전략';
