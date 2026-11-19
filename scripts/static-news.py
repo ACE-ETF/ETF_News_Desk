@@ -210,10 +210,16 @@ def offline_translator():
             "https://argos-net.com/v1/translate-en_ko-1_1.argosmodel",
         ]:
             try:
-                urllib.request.urlretrieve(model_url,archive)
+                started=time.monotonic();total=0
+                with urllib.request.urlopen(model_url,timeout=20) as response, archive.open("wb") as target:
+                    while chunk:=response.read(1024*1024):
+                        total+=len(chunk)
+                        if total>250_000_000 or time.monotonic()-started>60:
+                            raise TimeoutError("translation_model_download_limit")
+                        target.write(chunk)
                 break
-            except urllib.error.HTTPError as error:
-                log(modelDownloadHost=urllib.parse.urlsplit(model_url).hostname,status=error.code)
+            except (urllib.error.URLError,TimeoutError) as error:
+                log(modelDownloadHost=urllib.parse.urlsplit(model_url).hostname,status=getattr(error,"code",None),error=type(error).__name__)
         else:raise RuntimeError("translation_model_download_unavailable")
         with zipfile.ZipFile(archive) as z:
             for member in z.infolist():

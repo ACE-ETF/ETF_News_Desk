@@ -70,8 +70,12 @@ jobs:
           expected=pipeline.window(now,closed)
           stale=pipeline.due(now,closed) and latest.get("window")!=expected
           if mode=="stage" and stale:publication_mode="stored-release"
+          state=pipeline.read(Path("source/_news_state/state.json"),pipeline.new_state())
+          selected=[a for a in state["articles"].values() if expected["start"]<=a["published"]<expected["end"]]
+          pipeline.editorial(state,selected)
+          needs_translation=any(a.get("language")=="en" and not pipeline.routine(a) and not state["summaries"].get(a["id"]) for a in selected)
           with open(os.environ["GITHUB_OUTPUT"],"a") as f:
-              f.write("mode="+mode+"\npublication_mode="+publication_mode+"\n")
+              f.write("mode="+mode+"\npublication_mode="+publication_mode+"\nneeds_translation="+str(needs_translation).lower()+"\n")
           pipeline.log(collectionMode=mode,publicationMode=publication_mode,recoveringStaleEdition=stale)
           PY
       - name: Claim the round before any feed request
@@ -107,12 +111,14 @@ jobs:
           path: ~/.cache/etf-news
           key: etf-news-en-ko-argos-1-1
       - name: Install free CPU translation and text extraction tools
+        timeout-minutes: 3
         if: steps.mode.outputs.publication_mode != 'stage'
         continue-on-error: true
         working-directory: source
         run: python -m pip install -r scripts/static-news-requirements.txt
       - name: Verify free translation model
-        if: steps.mode.outputs.publication_mode != 'stage'
+        timeout-minutes: 2
+        if: steps.mode.outputs.publication_mode != 'stage' && steps.mode.outputs.needs_translation == 'true'
         continue-on-error: true
         working-directory: source
         run: |
