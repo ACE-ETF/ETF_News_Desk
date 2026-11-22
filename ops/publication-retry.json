@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "windowEnd": null,
+  "windowEnd": "2026-11-22T22:40:00.000Z",
   "mode": "stored-release",
-  "requestedAt": null,
-  "attempt": 0,
+  "requestedAt": "2026-11-22T22:51:06.509Z",
+  "attempt": 1,
   "origin": "cloud-publication-watchdog"
 }
