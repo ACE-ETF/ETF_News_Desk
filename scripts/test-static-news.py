@@ -56,4 +56,21 @@ class PipelineTests(unittest.TestCase):
             self.assertEqual([a["id"] for a in saved["articles"]],["old"])
     def test_damaged_translation_placeholders_are_not_saved(self):
         self.assertIsNone(m.protect_translate("SPY ETF inflows $2.5 billion",lambda s:"번역 결과에서 숫자를 잃었습니다"))
+    def test_briefing_describes_news_and_separates_events(self):
+        state=m.new_state()
+        selected=[]
+        for ident,title,category in [
+            ('a','ACE ETF 순매수 1조원 돌파','수급·성과'),
+            ('b','ACE ETF 순매수 1조원 돌파!','수급·성과'),
+            ('c','새로운 AI 인프라 ETF 신규 상장','신규 상장'),
+            ('d','ETF 지표 산출료 개편 예정','제도·시장'),
+        ]:
+            selected.append({'id':ident,'title':title,'category':category,'language':'ko','brands':['ACE'],
+                             'published':'2026-11-22T00:00:00.000Z','url':'https://example.com/'+ident})
+        result=m.edition(state,selected,{'start':'2026-11-19T22:40:00.000Z','end':'2026-11-22T22:40:00.000Z'},datetime.now(m.UTC))
+        briefing=result['briefing']
+        self.assertEqual(len(briefing['items']),3)
+        self.assertTrue(any('순매수 1조원' in i['text'] for i in briefing['items']))
+        self.assertFalse(any('이번 공개 구간' in line or '건의 ETF 보도' in line for line in briefing['overview']))
+        self.assertEqual(len({i['articleIds'][0] for i in briefing['items']}),3)
 if __name__=="__main__":unittest.main()

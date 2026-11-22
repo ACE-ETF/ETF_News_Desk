@@ -7,7 +7,7 @@ on:
     # Start the morning runner early; release remains gated at 07:40 KST.
     - cron: '45 21 * * 0-4'
     - cron: '40 22 * * 0-4'
-    # Independent stored-only recovery checks if the primary cron is delayed.
+    # GitHub backup checks; the independent cloud watchdog runs at 07:40/08:40 KST.
     - cron: '47 22 * * 0-4'
     - cron: '17 23 * * 0-4'
   workflow_dispatch:
@@ -23,10 +23,14 @@ permissions:
 concurrency:
   group: etf-news-production
   cancel-in-progress: false
+  # Preserve a pending publication when another collection/recovery event arrives.
+  queue: max
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 85
+    outputs:
+      edition: ${{ steps.edition.outputs.metadata }}
     permissions:
       contents: write
     env:
@@ -175,6 +179,18 @@ jobs:
       - name: Export and verify the static edition
         working-directory: source
         run: python scripts/static-news.py --phase export
+      - name: Record the edition included in this deployment
+        id: edition
+        working-directory: source
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          data=json.loads(Path("public/news-data/latest.json").read_text())
+          metadata={"window":data["window"],"fetched":data["status"]["fetched"],"updated":data["status"]["updated"]}
+          with open(os.environ["GITHUB_OUTPUT"],"a") as f:
+              f.write("metadata="+json.dumps(metadata,separators=(",",":"))+"\n")
+          PY
       - name: Persist public edition and archive
         if: always()
         working-directory: source
@@ -214,6 +230,7 @@ jobs:
       - name: Verify the live news edition
         env:
           LIVE_URL: ${{ steps.deployment.outputs.page_url }}
+          EXPECTED_EDITION: ${{ needs.build.outputs.edition }}
         run: |
           python3 - <<'PY'
           import json,os,urllib.request
@@ -223,6 +240,10 @@ jobs:
               assert 'etf-static-data' in r.read().decode(), "Static news source marker missing"
           with urllib.request.urlopen(base+"news-data/latest.json"+marker,timeout=30) as r:
               data=json.load(r)
+          expected=json.loads(os.environ["EXPECTED_EDITION"])
+          assert data["window"]==expected["window"], "Live edition window differs from the deployment"
+          assert data["status"]["updated"]==expected["updated"], "Live edition is an older revision"
+          assert data["status"]["fetched"]==expected["fetched"], "Live edition count differs from the deployment"
           assert len(data["articles"])>0
           assert len(data["articles"])==data["status"]["fetched"]
           assert all(data["window"]["start"]<=a["published"]<data["window"]["end"] for a in data["articles"])

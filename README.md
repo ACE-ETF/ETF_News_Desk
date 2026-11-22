@@ -2,15 +2,14 @@
 
 국내 ETF 뉴스를 수집하고 주요 이슈·간단 요약·원문 링크로 확인하는 모바일 대응 뉴스 데스크입니다.
 
-현재 운영 사이트: https://etf-news-desk-insik.openfawn16384.chatgpt.site/
+현재 운영 사이트: https://ace-etf.github.io/ETF_News_Desk/
 
 ## 현재 연결 상태
 
-- 이 저장소는 2026-10-29 운영 버전의 소스 스냅샷입니다.
-- 운영 호스팅과 한국 영업일 오전 7시 40분 수집은 기존 Sites 환경에서 계속 실행됩니다.
-- `main` 변경 시 GitHub Actions가 Pages 화면을 빌드하고 배포합니다. 최초 1회 저장소 Settings → Pages → Source를 GitHub Actions로 설정해야 합니다.
-- 수집 기사, 요약 데이터, 운영 인증키, 호스팅 식별자와 로컬 실행 기록은 포함하지 않습니다.
-- GitHub Pages는 뉴스 화면을 제공하고, 기존 Sites API와 R2가 수집·저장을 담당합니다. API 데이터는 페이지를 열거나 새로고침할 때 읽으므로 매일 재배포할 필요가 없습니다.
+- 현재 운영 주소: https://ace-etf.github.io/ETF_News_Desk/
+- GitHub Actions가 RSS 수집·제목 번역·공개 JSON 저장·Pages 배포를 담당합니다. 공개 기사와 누적 상태는 `news-data` 브랜치에 보관합니다.
+- 수집은 매일 01:10·07:10·13:10·19:10 KST, 공개 목표는 한국 영업일 07:40입니다. GitHub 예약 지연에 대비해 별도 클라우드 작업이 07:40·08:40에 실제 공개본을 확인하고 미갱신일 때 push로 복구를 요청합니다.
+- 현재 운영·편집·재시도 기준은 [docs/static-news-operation.md](docs/static-news-operation.md)를 사용합니다. 아래의 Sites API·R2 설명은 과거 서버 구현 참고이며 기존 Sites 예약은 중지 상태입니다.
 
 ## 주요 기능
 

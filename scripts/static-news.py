@@ -2,6 +2,7 @@
 from __future__ import annotations
 import argparse
 from collections import Counter
+from difflib import SequenceMatcher
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 import hashlib
@@ -293,18 +294,24 @@ def edition(state, selected, win, now):
     usable=sorted([a for a in articles if not routine(a)],key=rank,reverse=True)
     domestic=[a for a in usable if a.get("language")=="ko"]
     overseas=[a for a in usable if a.get("language")=="en"]
-    chosen=[];seen=set()
-    for a in domestic+overseas:
-        key=(a["category"],re.sub(r"[\W_]+","",a["title"]).lower())
-        if key in seen:continue
-        seen.add(key);chosen.append(a)
+    chosen=[];seen=[];categories=set()
+    # Prefer verified summaries, separate news themes, and distinct events.
+    candidates=sorted(domestic+overseas,key=lambda a:(a.get("summaryKind")=="summary",rank(a)),reverse=True)
+    for diverse in (True,False):
+        for a in candidates:
+            key=re.sub(r"[\W_]+","",a["title"]).lower()
+            numbers=tuple(re.findall(r"\d+(?:[.,]\d+)*",a["title"]))
+            brands=frozenset(a["brands"])
+            if any(numbers==digits and brands==names and SequenceMatcher(None,key,old).ratio()>=0.82
+                   for old,digits,names in seen):continue
+            if diverse and a["category"] in categories:continue
+            seen.append((key,numbers,brands));categories.add(a["category"]);chosen.append(a)
+            if len(chosen)==4:break
         if len(chosen)==4:break
-    categories=Counter(a["category"] for a in domestic)
-    overview=[
-        "이번 공개 구간에 국내 "+str(sum(a.get("language")=="ko" for a in articles))+"건·해외 "+str(sum(a.get("language")=="en" for a in articles))+"건의 ETF 보도를 확인했습니다.",
-        "국내 보도는 "+("·".join(k for k,_ in categories.most_common(2)) or "ETF 동향")+" 중심입니다. 세부 내용은 대표 기사와 원문에서 확인할 수 있습니다."
-    ]
-    briefing={"windowStart":win["start"],"windowEnd":win["end"],"overview":overview,"items":[
+    # Counts belong to collection status; the briefing describes actual news.
+    overview=[(("제목 기준: " if a.get("summaryKind")!="summary" else "")+
+               a.get("summary",a["title"]))[:160] for a in chosen[:2]]
+    briefing={"windowStart":win["start"],"windowEnd":win["end"],"reviewed":False,"overview":overview,"items":[
         {"title":a["title"][:90],"text":(("제목 번역 기준: " if a.get("summaryKind")=="title_translation" else "")+a.get("summary","원제목 기준: "+a["title"]))[:400],"articleIds":[a["id"]]} for a in chosen]}
     ids={a["id"] for a in articles}
     for path in (ROOT/"editorial").glob("*.json"):
