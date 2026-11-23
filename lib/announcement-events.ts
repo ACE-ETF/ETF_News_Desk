@@ -1,6 +1,6 @@
 import type {Article} from './news';
 
-const issuers:[RegExp,string][]=[[/미래에셋(?:자산)?운용|TIGER/i,'TIGER'],[/KB(?:자산)?운용|RISE/i,'RISE'],[/한국투자(?:신탁)?운용|한투운용|\bACE\b/i,'ACE'],[/삼성(?:자산)?운용|KODEX/i,'KODEX'],[/신한(?:자산)?운용|\bSOL\b/i,'SOL'],[/한화(?:자산)?운용|\bPLUS\s*[가-힣]/i,'PLUS'],[/키움(?:투자)?(?:자산)?운용|KIWOOM/i,'KIWOOM']];
+const issuers:[RegExp,string][]=[[/미래에셋(?:자산)?운용|미래운용|미래에셋[,，]|TIGER/i,'TIGER'],[/우리(?:자산)?운용|\bWON\b/i,'WON'],[/KB(?:자산)?운용|RISE/i,'RISE'],[/한국투자(?:신탁)?운용|한투운용|\bACE\b/i,'ACE'],[/삼성(?:자산)?운용|KODEX/i,'KODEX'],[/신한(?:자산)?운용|\bSOL\b/i,'SOL'],[/한화(?:자산)?운용|\bPLUS\s*[가-힣]/i,'PLUS'],[/키움(?:투자)?(?:자산)?운용|KIWOOM/i,'KIWOOM']];
 const compact=(s:string)=>s.normalize('NFKC').replace(/美/g,'미국').replace(/[\s'"‘’“”]/g,'').toUpperCase();
 const near=(a:Article,b:Article)=>a.date===b.date&&Math.abs(Date.parse(a.published)-Date.parse(b.published))<=18*3600000;
 const issuer=(a:Article)=>{const names=issuers.filter(([r])=>r.test(a.title)).map(([,n])=>n);return names.length===1?names[0]:''};
@@ -68,6 +68,41 @@ export function announcementEventKeys(articles:Article[]):Map<string,string>{
    if(/글로벌/.test(r.title)&&!product.includes('글로벌'))return false;
    return ['삼성전자|삼전','SK하이닉스|SK하닉|하이닉스|하닉'].every(n=>!direction(r.title,n)||!direction(x.title+x.body,n)||direction(r.title,n)===direction(x.title+x.body,n));
   }).map(x=>['announcement-rebalance',x.issuer,x.a.date,productNames(x.body)[0],...x.body.matchAll(/\d+(?:\.\d+)?%/g)].join(':')));
+ }
+ // Match an exact product and payout month even when the issuer/brand is
+ // omitted. Conflicting amounts or payment days must never be bridged by a
+ // headline that omits those details.
+ const payouts=articles.map(a=>{
+  const t=compact(a.title);
+  if(!/ETF/.test(t)||!/분배|배당/.test(t)||/중단|삭감|축소|정정|연기|취소|비교|전망/.test(t))return;
+  const product=t.match(/(?:WON)?(한국부동산TOP3플러스)(?=ETF)/)?.[1];
+  if(!product||/레버리지|인버스|커버드콜/.test(t))return;
+  const month=(t.match(/(\d{1,2})월/)?.[1]||a.date.slice(5,7)).padStart(2,'0');
+  const value=t.match(/(?:분배금|배당금)(?:은|이|좌당|1좌당|약)*(\d[\d,]*)원/)?.[1]?.replace(/,/g,'');
+  const payday=t.match(/(\d{1,2})일(?:분배금)?지급/)?.[1];
+  return {a,base:['product-payout',product,a.date.slice(0,4),month].join(':'),value,payday};
+ }).filter((x):x is NonNullable<typeof x>=>!!x);
+ for(const r of payouts){
+  const peers=payouts.filter(x=>x.base===r.base&&near(r.a,x.a));
+  const values=[...new Set(peers.map(x=>x.value).filter(Boolean))];
+  const days=[...new Set(peers.map(x=>x.payday).filter(Boolean))];
+  if(values.length<=1&&days.length<=1)keys.set(r.a.id,r.base);
+  else keys.set(r.a.id,[r.base,r.value||'?',r.payday||'?'].join(':'));
+ }
+ // A named LLM launch supplies the identity for shortened same-day release
+ // headlines. Commentary, roundups, other funds and cancelled launches stay out.
+ const llm=rows.filter(r=>r.issuer==='TIGER'&&/ETF/.test(r.title)
+  &&/LLM/.test(r.title+r.body)&&/출시|상장|첫선|신규ETF/.test(r.title)
+  &&!/상장폐지|청산|취소|연기|비교|전망|급락|조정|이모저모|인프라|ETF2종/.test(r.title));
+ const llmAnchors=llm.filter(r=>/TIGER글로벌LLM액티브/.test(r.title+r.body));
+ for(const r of llm){
+  assign(r.a.id,llmAnchors.filter(x=>near(r.a,x.a)
+   && !/레버리지|인버스|커버드콜|채권/.test(r.title)
+   && productNames(r.title).every(n=>n==='TIGER글로벌LLM액티브')
+   && [...r.title.matchAll(/(?:(\d{1,2})월)?(\d{1,2})일/g)].every(m=>
+     (m[1]||r.a.date.slice(5,7)).padStart(2,'0')===x.a.date.slice(5,7)
+     && new RegExp('(?:'+Number(m[2])+'일|/'+Number(m[2])+')').test(x.title+x.body)))
+   .map(x=>['product-launch','TIGER글로벌LLM액티브',x.a.date].join(':')));
  }
  return keys;
 }
