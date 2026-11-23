@@ -349,3 +349,37 @@ console.log('PASS: IPO exposure and ETF strategy comparisons receive modest, non
 
 assert.equal(briefStories(groupStories(parking)).length,1,'A checked representative with a shorter title must retain its grouped AUM signal');
 console.log('PASS: verified representative retains the strongest importance signal from its same-event coverage');
+
+// November 24: syndicated releases must resolve independently of title wording.
+const nov24=(id,title,extra={})=>({...make(id,title,'상품·전략').a,date:'2026-11-23',published:'2026-11-23T10:00:00Z',...extra});
+const llmAnchor=nov24('llm-anchor',"미래에셋, 앤트로픽 등 순수 LLM 기업 투자 '글로벌LLM액티브 ETF' 상장",{summaryKind:'summary',summary:'TIGER 글로벌LLM액티브 11/24 상장 예정.'});
+const nov24Titles=[
+ '미래에셋운용, 앤트로픽·오픈AI 등 LLM 겨냥한 ETF 24일 출시',
+ '앤트로픽에 25% 투자…미래운용, LLM 집중 ETF 출시 : 금융',
+ '우리자산운용, 한국부동산TOP3플러스 ETF 특별분배',
+ "우리자산운용, 'WON 한국부동산TOP3플러스 ETF' 11월 특별분배",
+ "우리자산운용, 'WON 한국부동산TOP3플러스 ETF' 특별분배",
+ '우리자산운용, WON 한국부동산TOP3플러스 ETF 이달 특별분배 실시'
+];
+const nov24Rows=nov24Titles.map((t,i)=>nov24('nov24-'+i,t));
+for(const input of [[...nov24Rows,llmAnchor],[llmAnchor,...nov24Rows].reverse()]){
+ const groups=groupStories(input);assert.equal(groups.length,2);
+ assert.deepEqual(groups.map(s=>1+s.others.length).sort(),[3,4]);
+}
+for(const title of ['우리운용, WON 한국부동산TOP3플러스 ETF 12월 특별분배','우리운용, WON 한국부동산TOP3플러스 ETF 분배금 삭감','우리운용, WON 한국부동산TOP2플러스 ETF 특별분배']){
+ assert.equal(groupStories([nov24Rows[2],nov24('different',title)]).length,2);
+}
+for(const title of ['미래운용, LLM ETF 25일 출시','미래운용, LLM 레버리지 ETF 출시','미래운용, LLM ETF 출시 연기']){
+ assert.equal(groupStories([llmAnchor,nov24('different',title)]).length,2);
+}
+const actualEdition=process.env.NEWS_EDITION_FIXTURE;
+if(actualEdition){
+ const articles=JSON.parse(fs.readFileSync(actualEdition,'utf8')).articles;
+ const grouped=groupStories(articles);
+ const matching=(re)=>grouped.filter(s=>[s.a,...s.others].some(a=>re.test(a.title)));
+ assert.equal(matching(/한국부동산TOP3플러스/).length,1);
+ const llmGroups=matching(/미래(?:에셋(?:자산)?운용|운용).*LLM.*ETF.*(?:출시|상장)|앤트로픽에 25% 투자…미래운용/).filter(s=>![s.a,...s.others].some(a=>/이모저모|한화.*미래에셋/.test(a.title)));
+ assert.equal(llmGroups.length,1);
+ console.log('LIVE EDITION: '+articles.length+' articles, '+grouped.length+' issues; payout '+(matching(/한국부동산TOP3플러스/)[0].others.length+1)+' reports, LLM '+(llmGroups[0].others.length+1)+' reports');
+}
+console.log('PASS: November 24 release aliases, reversed input, all sources retained; different products, payout months and launch dates stay separate');
