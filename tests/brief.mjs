@@ -383,3 +383,66 @@ if(actualEdition){
  console.log('LIVE EDITION: '+articles.length+' articles, '+grouped.length+' issues; payout '+(matching(/한국부동산TOP3플러스/)[0].others.length+1)+' reports, LLM '+(llmGroups[0].others.length+1)+' reports');
 }
 console.log('PASS: November 24 release aliases, reversed input, all sources retained; different products, payout months and launch dates stay separate');
+
+const syndication=(...args)=>{const row=make(...args);return {...row,a:{...row.a,date:'2026-11-24',published:'2026-11-24T02:00:00Z'}}};
+const infraAnchor={...syndication('infra-anchor',"한화자산운용, 'PLUS 글로벌AI병목인프라액티브' ETF 신규 상장",'신규 상장').a,
+ summary:'PLUS 글로벌AI병목인프라액티브 11/24 상장. 버티브 13.5%·루멘텀 12.5%·블룸에너지 11.5% 편입, 발전·냉각·광통신 등 5개 인프라 분야 투자.',summaryKind:'summary'};
+const infraAliases=[
+ '한화운용, PLUS 글로벌AI병목인프라액티브 ETF 신규 상장...AI 데이터센터 투자',
+ '한화운용, 인공지능(AI) 데이터센터 병목 투자 ETF 신규 상장',
+ "한화자산운용, '글로벌AI병목인프라액티브' ETF 상장...전력·냉각·광통신 투자",
+ '반도체 대신 전력·냉각·광통신…한화운용, AI 인프라 ETF 상장',
+ '한화운용, 전력·냉각·광통신 담은 ‘AI병목인프라 ETF’ 상장',
+ '한화운용, AI 데이터센터 인프라 ETF 24일 상장 : 금융',
+ "AI 데이터센터 '병목'에 투자…한화운용, 글로벌 인프라 ETF 상장",
+].map((t,i)=>syndication('infra-'+i,t,i<2?'신규 상장':'상품·전략').a);
+const additionTitles=[
+ "삼성운용, 'KODEX 미국AI에이전트액티브' ETF에 앤트로픽 편입",
+ "삼성자산운용, '미국AI에이전트액티브' ETF에 앤트로픽 편입",
+ "삼성자산운용, '미국AI에이전트액티브 ETF'에 앤트로픽 담았다",
+ '삼성자산운용, 美 상장 앤트로픽 ETF에 19.4% 편입',
+ '삼성자산운용, 미국 AI에이전트 ETF에 앤트로픽 상장 이틀 만에 19.4% 편입',
+ '삼성운용 ETF, 엔트로픽 상장 직후 담았다...편입 비중 19.4%',
+].map((t,i)=>syndication('addition-'+i,t,'상품·전략').a);
+const comparison=syndication('comparison','[마켓H] 앤트로픽 상장에 엇갈린 ETF 전략…삼성 늘리고 KB는 줄여','상품·전략').a;
+for(const input of [[...infraAliases,infraAnchor,...additionTitles,comparison],[comparison,...additionTitles,infraAnchor,...infraAliases].reverse()]){
+ const groups=compressStoryCoverageForTest(input);
+ assert.equal(groups.length,3);
+ const infra=groups.find(s=>s.a.id===infraAnchor.id);assert(infra);assert.equal(infra.others.length,infraAliases.length);
+ assert.equal(groups.filter(s=>[s.a,...s.others].some(a=>a.id==='addition-0')).length,1);
+ assert.equal(groups.find(s=>[s.a,...s.others].some(a=>a.id==='addition-0')).others.length,additionTitles.length-1);
+ assert(groups.some(s=>s.a.id===comparison.id&&s.others.length===0));
+ assert.equal(new Set(groups.flatMap(s=>[s.a,...s.others]).map(a=>a.id)).size,input.length);
+}
+function compressStoryCoverageForTest(input){return compressFlowTopics(groupStories(input));}
+for(const title of [
+ "한화운용, 'PLUS 미국AI전력인프라액티브' ETF 신규 상장",
+ '한화운용, AI 데이터센터 인프라 ETF 25일 상장',
+ '한화운용, AI 데이터센터 인프라 ETF 신규 상장 연기',
+ '한화운용, AI 데이터센터 인프라 ETF 레버리지 출시',
+])assert.equal(groupStories([infraAnchor,syndication('infra-other',title,'신규 상장').a]).length,2,title);
+const competingInfra={...infraAnchor,id:'infra-competitor',url:'https://example.com/infra-competitor',title:infraAnchor.title.replace('글로벌','미국'),summary:infraAnchor.summary.replace('글로벌','미국')};
+assert.equal(groupStories([infraAnchor,competingInfra,infraAliases[1]]).length,3,'a generic launch cannot bridge two compatible named products');
+for(const title of [
+ '삼성운용, KODEX 미국AI반도체액티브 ETF에 앤트로픽 편입',
+ '삼성운용, 미국AI에이전트액티브 ETF 앤트로픽 비중 축소',
+ '삼성운용, 美 AI ETF에 앤트로픽 20.4% 편입',
+])assert.equal(groupStories([...additionTitles,syndication('addition-other',title,'상품·전략').a]).length>=2,true,title);
+const competingAddition={...additionTitles[0],id:'addition-competitor',url:'https://example.com/addition-competitor',title:additionTitles[0].title.replace('미국AI에이전트','글로벌AI에이전트')};
+const ambiguousAddition=groupStories([additionTitles[0],competingAddition,additionTitles[3]]);
+assert.equal(ambiguousAddition.length,3,'generic constituent addition cannot select an arbitrary fund');
+const recentFixture=process.env.NEWS_SYNDICATION_FIXTURE;
+if(recentFixture){
+ const articles=JSON.parse(fs.readFileSync(recentFixture,'utf8')).articles;
+ for(const input of [articles,[...articles].reverse(),[...articles].sort(compareImportance)]){
+  const groups=compressStoryCoverageForTest(input);
+  const infra=groups.filter(s=>[s.a,...s.others].some(a=>a.id==='35c870b6317bbdd730129498a4b5949def631b915b3e253931a0791d6fa6d1eb'));
+  assert.equal(infra.length,1);assert.equal(infra[0].a.summaryKind,'summary');assert.equal(infra[0].others.length,16);
+  const samsung=groups.filter(s=>[s.a,...s.others].some(a=>a.id==='af0df20416474bfb37aac52d8aef7d417f4f5087b57fe5054bef3e35e6eccb31'));
+  assert.equal(samsung.length,1);assert.equal(samsung[0].others.length,11);
+  assert(!samsung[0].others.some(a=>a.id==='bd93fe535cfea1945e77979dd6917384cf7c0f9648468244df8ff9e951f05f5f'));
+  const before=new Set(articles.map(a=>a.url)),after=new Set(groups.flatMap(s=>[s.a,...s.others]).map(a=>a.url));assert.deepEqual(after,before);
+ }
+ console.log('LIVE EDITION: 17 infrastructure launch reports and 12 constituent-addition reports each appear once; all source URLs and strategy comparisons retained across three sort orders');
+}
+console.log('PASS: single-fund launch and constituent-addition syndication, quoted/brandless/descriptive titles, verified representative, ambiguous products, dates, weights and comparisons');

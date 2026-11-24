@@ -104,5 +104,61 @@ export function announcementEventKeys(articles:Article[]):Map<string,string>{
      && new RegExp('(?:'+Number(m[2])+'일|/'+Number(m[2])+')').test(x.title+x.body)))
    .map(x=>['product-launch','TIGER글로벌LLM액티브',x.a.date].join(':')));
  }
+ // Resolve single-fund launch aliases from a verified named announcement,
+ // including quoted names without a brand and descriptive infrastructure titles.
+ const editorial=/비교|엇갈|경쟁|이모저모|쏟아|전망|예상|계획|예정|취소|연기|상장폐지|청산|레버리지|인버스|커버드콜|\bVS\b/i;
+ const multipleManagers=(s:string)=>[/미래에셋|미래운용|TIGER/i,/삼성|KODEX/i,/KB|RISE/i,/한화|PLUS/i,/한국투자|한투운용|ACE/i,/신한|SOL/i,/키움|KIWOOM/i].filter(f=>f.test(s)).length>1;
+ const singleLaunches=rows.filter(r=>/ETF/.test(r.title)&&/신규상장|출시|ETF(?:\d{1,2}일)?상장/.test(r.title)&&!editorial.test(r.title)&&!multipleManagers(r.title)&&!/ETF(?:등)?[2-9]종/.test(r.title));
+ const singleAnchors=singleLaunches.flatMap(r=>{
+  const names=productNames(r.title);
+  return r.body&&names.length===1?[{...r,product:names[0]}]:[];
+ });
+ const launchDay=(s:string,date:string)=>{const m=s.match(/(?:(\d{1,2})월)?(\d{1,2})일(?:신규)?상장/)||s.match(/(\d{1,2})\/(\d{1,2})상장/);return m?Number(m[1]||date.slice(5,7))+'-'+Number(m[2]):''};
+ for(const r of singleLaunches){
+  assign(r.a.id,singleAnchors.filter(x=>{
+   if(r.issuer!==x.issuer||!near(r.a,x.a))return false;
+   const rd=launchDay(r.title,r.a.date),xd=launchDay(x.title+x.body,x.a.date);if(rd&&xd&&rd!==xd)return false;
+   const names=productNames(r.title);if(names.length)return names.every(n=>n===x.product);
+   const alias=x.product.replace(new RegExp('^'+x.issuer),'');
+   // Quoted fund names often omit the brand. An explicitly different name
+   // cannot inherit a product from the manager or the broad AI theme alone.
+   const quoted=[...r.a.title.matchAll(/['‘“"]([^'’”"]+)['’”"]/g)].map(m=>compact(m[1]).replace(/ETF$/,'').replace(new RegExp('^'+x.issuer),''));
+   if(quoted.some(n=>n.length>5&&/액티브|인프라|반도체|채권|TOP\d/.test(n)&&!alias.includes(n)))return false;
+   if(r.title.includes(alias))return true;
+   const description=r.title.replace(/반도체대신/g,'');
+   const features=[/병목/,/에이전트/,/반도체/,/전력/,/냉각/,/광통신/,/데이터센터/,/LLM/,/회사채/,/초대형주/].filter(f=>f.test(description));
+   const evidence=x.title+x.body;
+   const matches=features.every(f=>f.test(evidence)||f.source==='데이터센터'&&/AI.*인프라/.test(evidence)||f.source==='전력'&&/발전/.test(evidence));
+   return features.length>0&&matches
+    && (/병목|에이전트|LLM|초대형주|데이터센터.*인프라/.test(r.title)||features.length>=3);
+  }).map(x=>['single-launch',x.issuer,x.a.date,x.product,launchDay(x.title+x.body,x.a.date)].join(':')));
+ }
+ // Constituent additions are their own event. A shortened manager/stock
+ // headline joins only one named portfolio and one compatible holding weight.
+ const additions=rows.filter(r=>/ETF/.test(r.title)&&/앤트로픽|앤스로픽|엔트로픽|ANTHROPIC/.test(r.title)
+  &&/편입|담았다|담았|담은|담는다/.test(r.title)&&!singleLaunches.includes(r)&&!editorial.test(r.title)&&!multipleManagers(r.title)&&!/축소|줄여|매도|편출/.test(r.title));
+ const additionAnchors=additions.flatMap(r=>{
+  const names=productNames(r.title);return names.length===1?[{...r,product:names[0]}]:[];
+ });
+ const weights=(s:string)=>[...s.matchAll(/(\d+(?:\.\d+)?)%/g)].map(m=>Number(m[1]));
+ for(const r of additions){
+  const names=productNames(r.title),ownWeights=weights(r.title);
+  const candidates=additionAnchors.filter(x=>{
+   if(r.issuer!==x.issuer||!near(r.a,x.a)||names.some(n=>n!==x.product))return false;
+   const alias=x.product.replace(new RegExp('^'+x.issuer),'');
+   const quoted=[...r.a.title.matchAll(/['‘“"]([^'’”"]+)['’”"]/g)].map(m=>compact(m[1]).replace(/ETF$/,'').replace(new RegExp('^'+x.issuer),''));
+   if(quoted.some(n=>/액티브|에이전트|TOP\d/.test(n)&&!alias.includes(n)))return false;
+   if(['에이전트','반도체','인프라','채권','배당'].some(f=>r.title.includes(f)&&!alias.includes(f)))return false;
+   return true;
+  });
+  const products=[...new Set(candidates.map(x=>x.product))];if(products.length!==1)continue;
+  const product=products[0];
+  const values=[...new Set(additions.filter(x=>x.issuer===r.issuer&&near(r.a,x.a)
+   &&productNames(x.title).every(n=>n===product)).flatMap(x=>weights(x.title)))];
+  // Conflicting percentages remain separate; a missing percentage cannot
+  // become a bridge. Exact product aliases still resolve without a weight.
+  if(ownWeights.length>1||!ownWeights.length&&values.length>1)continue;
+  assign(r.a.id,[['constituent-addition',r.issuer,r.a.date,product,'ANTHROPIC',ownWeights[0]??values[0]??'unspecified'].join(':')]);
+ }
  return keys;
 }
