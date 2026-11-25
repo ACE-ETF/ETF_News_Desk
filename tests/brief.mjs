@@ -446,3 +446,64 @@ if(recentFixture){
  console.log('LIVE EDITION: 17 infrastructure launch reports and 12 constituent-addition reports each appear once; all source URLs and strategy comparisons retained across three sort orders');
 }
 console.log('PASS: single-fund launch and constituent-addition syndication, quoted/brandless/descriptive titles, verified representative, ambiguous products, dates, weights and comparisons');
+
+const cashArticle=(id,title,extra={})=>({...make(id,title,'수급·성과').a,date:'2026-11-25',published:'2026-11-25T02:00:00Z',...extra});
+const cashAnchor=cashArticle('cash-anchor','삼성운용, KODEX 머니마켓액티브 ETF, 이달 개인 순매수 1000억 돌파',{
+ summary:'KODEX 머니마켓액티브, 11/25 발표 기준 11월 개인 누적 순매수 1,296억원. 순자산 12조6,911억원으로 전체 ETF 3위, 초단기 채권·우량 CP 등에 분산 투자.',summaryKind:'summary'});
+const cashAliases=[
+ '삼성 KODEX 머니마켓액티브 ETF, 이달 개인 순매수 1천억 돌파',
+ '증시 변동성에 파킹형 ETF로 뭉칫돈…KODEX 순매수 1296억 원',
+ '삼성자산운용 KODEX 머니마켓액티브, 11월 개인 순매수 1296억원… 국내 파킹형 ETF 1위',
+ '삼성자산운용, KODEX 머니마켓액티브 ETF 개인 순매수 1296억원',
+ "삼성자산운용, '머니마켓액티브 ETF' 11월 개인 순매수 1000억 돌파",
+ 'KODEX 머니마켓액티브, 순자산 12조…전체 ETF 중 3위',
+ '삼성 KODEX 머니마켓액티브, 이달 파킹형 ETF 개인 순매수 선두',
+ '삼성자산운용 KODEX 머니마켓액티브, 파킹형 ETF 1위…배경은?',
+ 'KODEX 머니마켓 ETF, 11월 개인 1296억 순매수',
+].map((t,i)=>cashArticle('cash-'+i,t));
+const cashOpinion=cashArticle('cash-opinion','[투자의 창] 머니마켓 ETF를 찾는 이유',{category:'상품·전략'});
+for(const input of [[...cashAliases,cashAnchor,cashOpinion],[cashAnchor,...cashAliases,cashOpinion].reverse(),[...cashAliases,cashOpinion,cashAnchor].sort(compareImportance)]){
+ const groups=compressFlowTopics(groupStories(input));assert.equal(groups.length,2);
+ const cash=groups.find(s=>s.a.id===cashAnchor.id);assert(cash);assert.equal(cash.others.length,cashAliases.length);
+ assert(groups.some(s=>s.a.id===cashOpinion.id&&s.others.length===0));
+ assert.deepEqual(new Set(groups.flatMap(s=>[s.a,...s.others]).map(a=>a.url)),new Set(input.map(a=>a.url)));
+}
+for(const title of [
+ '삼성운용 KODEX 미국머니마켓액티브 ETF 이달 개인 순매수 1296억원',
+ '미래에셋 TIGER 머니마켓액티브 ETF 이달 개인 순매수 1296억원',
+ '삼성운용 KODEX 머니마켓액티브 ETF 10월 개인 순매수 1296억원',
+ '삼성운용 KODEX 머니마켓액티브 ETF 2025년 11월 개인 순매수 1296억원',
+ '삼성운용 KODEX 머니마켓액티브 ETF 하루 개인 순매수 1296억원',
+ '삼성운용 KODEX 머니마켓액티브 ETF 연초 이후 개인 순매수 1296억원',
+ '삼성운용 KODEX 머니마켓액티브 ETF 최근 1개월 개인 순매수 1296억원',
+ '삼성운용 KODEX 머니마켓액티브 ETF 이달 기관 순매수 1296억원',
+ '삼성운용 KODEX 머니마켓액티브 ETF 이달 순유입 1296억원',
+ '삼성운용 KODEX 머니마켓액티브 ETF 이달 개인 순매수 1396억원',
+ '삼성운용 KODEX 머니마켓액티브 ETF 이달 개인 순매수 1296억달러',
+ '삼성운용 KODEX 머니마켓액티브 ETF 순자산 13조원',
+ '삼성운용 KODEX 머니마켓액티브 ETF 순자산 12조…전체 ETF 중 2위',
+ '삼성운용 KODEX 머니마켓액티브 ETF 11월24일 기준 개인 순매수 1296억원',
+]){
+ const other=cashArticle('cash-other',title);
+ assert(!fundFlowAnnouncementKeys([cashAnchor,...cashAliases,other]).has(other.id),title);
+}
+const cashConflict={...cashAnchor,id:'cash-conflict',url:'https://example.com/cash-conflict',summary:cashAnchor.summary.replace('1,296','1,396')};
+assert(!fundFlowAnnouncementKeys([cashAnchor,cashConflict,cashAliases[0]]).has(cashAliases[0].id),'a coarse milestone cannot bridge conflicting verified amounts');
+const usCash={...cashAnchor,id:'us-cash',url:'https://example.com/us-cash',title:cashAnchor.title.replace('머니마켓','미국머니마켓'),summary:cashAnchor.summary.replace('머니마켓','미국머니마켓')};
+assert(!fundFlowAnnouncementKeys([cashAnchor,usCash,cashAliases[1]]).has(cashAliases[1].id),'generic parking flows cannot choose between two matching funds');
+const noCashBody={...cashAnchor,summaryKind:'title_translation'};
+assert.equal(fundFlowAnnouncementKeys([noCashBody,...cashAliases]).size,0,'title translations do not verify an announcement');
+const cashEditionFixture=process.env.NEWS_CASH_FIXTURE;
+if(cashEditionFixture){
+ const articles=JSON.parse(fs.readFileSync(cashEditionFixture,'utf8')).articles;
+ for(const input of [articles,[...articles].reverse(),[...articles].sort(compareImportance)]){
+  const groups=compressFlowTopics(groupStories(input));
+  const cash=groups.filter(s=>[s.a,...s.others].some(a=>a.id==='e8bf424acc770d72a518b412af631993b384e19e0786977450c704be0735ca07'));
+  assert.equal(cash.length,1);assert.equal(cash[0].others.length,11);assert.equal(cash[0].a.summaryKind,'summary');
+  assert.equal(groups.filter(s=>[s.a,...s.others].some(a=>/KODEX|삼성/.test(a.title)&&/머니마켓|파킹형/.test(a.title))).length,1);
+  assert(groups.some(s=>/투자의 창/.test(s.a.title)&&/머니마켓/.test(s.a.title)));
+  assert.deepEqual(new Set(groups.flatMap(s=>[s.a,...s.others]).map(a=>a.url)),new Set(articles.map(a=>a.url)));
+ }
+ console.log('LIVE EDITION: 12 KODEX money-market reports appear once across three sort orders; verified summary, opinion and every original URL retained');
+}
+console.log('PASS: verified cash-fund buying/AUM/rank announcements; Korean threshold units, named months, brandless names, investor/metric/currency/date/rank/amount conflicts and ambiguous anchors');
