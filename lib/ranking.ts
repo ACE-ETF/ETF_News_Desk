@@ -4,7 +4,7 @@ import {isNewListing} from './classify';
 export type Importance={score:number;level:'상'|'중'|'일반';reasons:string[]};
 // Transparent editorial rules using headlines only; no inference about article bodies.
 export function importance(a:Pick<Article,'title'|'category'>):Importance{
- const t=a.title;let score=15;const reasons:string[]=[];
+ const t=/분배|배당/.test(a.title)&&!/제도|개정|세법|규제|금융위|금감원/.test(a.title)?a.title.replace(/비과세/g,''):a.title;let score=15;const reasons:string[]=[];
  const add=(value:number,reason:string)=>{score+=value;reasons.push(reason)};
  if(/\b(?:SEC|regulat\w*|legislation|tax rules?)\b|제도|규제|금융위|금감원|금융당국|법안|과세|세제|세금|퇴직연금.*(?:허용|확대|편입|한도)|투자한도/i.test(t))add(45,'제도·투자 가능 범위');
  if(/\b(?:liquidat\w*|closures?|delist\w*|trading halt|tracking error)\b|상장폐지|거래정지|청산|괴리율|추적오차|유동성.*(?:위기|부족)/i.test(t))add(50,'운용·거래 위험');

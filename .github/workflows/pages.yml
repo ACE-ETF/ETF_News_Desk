@@ -204,6 +204,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify product announcement grouping and representative selection
+        working-directory: source
+        run: node tests/brief.mjs
       - name: Install frontend dependencies
         working-directory: source
         run: npm install --prefix pages --ignore-scripts --no-audit --no-fund

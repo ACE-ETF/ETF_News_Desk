@@ -15,8 +15,9 @@ export function category(t:string){
  if(/\b(?:distribution|dividend|payout)s?\b/i.test(t))return '배당·분배';
  if(/[a-z]/i.test(t)&&!/ETF.*[가-힣]|[가-힣].*ETF/.test(t)&&isNewListing(t))return '신규 상장';
  if(/\b(?:inflows?|outflows?|assets under management|AUM|net assets|returns?|performance)\b/i.test(t))return '수급·성과';
- if(/상장폐지|거래정지|청산|금융당국|금감원|금융위|제도|규제|과세|세제|법안|규정/.test(t))return '제도·시장';
- if(/특별\s*배당|특별\s*분배|분배금|분배율|분배락|배당락|분배\s*정책|배당\s*정책|중간\s*배당/.test(t))return '배당·분배';
+ const policyText=/분배|배당/.test(t)?t.replace(/비과세/g,''):t;
+ if(/상장폐지|거래정지|청산|금융당국|금감원|금융위|제도|규제|과세|세제|법안|규정|세법/.test(policyText))return '제도·시장';
+ if(/특별\s*배당|특별\s*분배|분배금|분배율|분배락|배당락|분배\s*정책|배당\s*정책|중간\s*배당|(?:주당|좌당).*\d[\d,]*\s*원\s*분배/.test(t))return '배당·분배';
  if(/이벤트|경품|증정|프로모션|캠페인|세미나|마케팅|수상|표창|어워즈/.test(t))return '마케팅';
  if(isNewListing(t))return '신규 상장';
  if(/유입|유출|순매수|순매도|순자산|수익률|성과/.test(t))return '수급·성과';

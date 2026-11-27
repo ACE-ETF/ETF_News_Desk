@@ -1,5 +1,5 @@
-import fs from 'node:fs';import ts from 'typescript';import assert from 'node:assert/strict';
-const url=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64');
+import fs from 'node:fs';import {stripTypeScriptTypes} from 'node:module';import assert from 'node:assert/strict';
+const url=s=>'data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(s,{mode:'transform'})).toString('base64');
 const bondMilestonesURL=url(fs.readFileSync('lib/bond-milestones.ts','utf8'));
 const insightURL=url(fs.readFileSync('lib/insights.ts','utf8'));const holidayURL=url(fs.readFileSync('lib/holidays.ts','utf8'));const classifyURL=url(fs.readFileSync('lib/classify.ts','utf8').replaceAll('./holidays',holidayURL));const rankURL=url(fs.readFileSync('lib/ranking.ts','utf8').replaceAll('./classify',classifyURL).replaceAll('./insights',insightURL));const {compareImportance}=await import(rankURL);const distributionURL=url(fs.readFileSync('lib/distribution-events.ts','utf8'));const overseasURL=url(fs.readFileSync('lib/overseas-events.ts','utf8'));const statementURL=url(fs.readFileSync('lib/statement-events.ts','utf8'));const eventsURL=url(fs.readFileSync('lib/story-events.ts','utf8').replaceAll('./statement-events',statementURL).replaceAll('./overseas-events',overseasURL));const flowAnnouncementURL=url(fs.readFileSync('lib/fund-flow-announcements.ts','utf8'));
 const launchURL=url(fs.readFileSync('lib/launch-events.ts','utf8'));
@@ -136,7 +136,7 @@ assert.equal(pair('Bitcoin ETF inflows on October 28 hit $137.3M','비트코인 
 const ambiguousFlow=[make(801,'Bitcoin ETFs attract $286M','수급·성과').a,make(802,'Bitcoin ETFs see $286M daily inflows','수급·성과').a,make(803,'Bitcoin ETFs see $286M inflows over two days','수급·성과').a];
 assert.equal(groupStories(ambiguousFlow).length,3,'unknown horizon cannot bridge daily and two-day totals');
 const topicMarketURL=url(fs.readFileSync('lib/market.ts','utf8').replaceAll('./insights',insightURL));
-const topicsURL=url(fs.readFileSync('lib/flow-topics.ts','utf8').replaceAll('./brief',briefURL).replaceAll('./bond-milestones',bondMilestonesURL).replaceAll('./overseas-events',overseasURL).replaceAll('./market',topicMarketURL).replaceAll('./ranking',rankURL).replaceAll('./insights',insightURL));
+const topicsURL=url(fs.readFileSync('lib/flow-topics.ts','utf8').replaceAll('./fund-flow-announcements',flowAnnouncementURL).replaceAll('./announcement-events',announcementURL).replaceAll('./brief',briefURL).replaceAll('./bond-milestones',bondMilestonesURL).replaceAll('./overseas-events',overseasURL).replaceAll('./market',topicMarketURL).replaceAll('./ranking',rankURL).replaceAll('./insights',insightURL));
 const {compressFlowTopics}=await import(topicsURL);
 const topicEvents=groupStories([make(810,'Bitcoin ETFs lose $255m over 30 days despite BlackRock inflows','수급·성과').a,make(811,'U.S. Spot Bitcoin ETFs See $292 Million in 30-Day Net Outflows','수급·성과').a,make(812,'美 비트코인(BTC) 현물 ETF, 30일간 2억9200만달러 순유출','수급·성과').a,make(813,'Bitcoin ETF Inflows Return as IBIT Trading Volume Shrinks','수급·성과').a,make(814,'SEC approves Bitcoin ETF rules','제도·시장').a].map(a=>({...a,marketHint:'overseas'})));
 const topicDisplay=compressFlowTopics(topicEvents);assert.equal(topicDisplay.length,2);assert.equal(topicDisplay[0].others.length,3);assert.equal(topicDisplay[0].relatedKind,'coverage');assert.equal(topicDisplay[1].a.id,'814');
@@ -507,3 +507,57 @@ if(cashEditionFixture){
  console.log('LIVE EDITION: 12 KODEX money-market reports appear once across three sort orders; verified summary, opinion and every original URL retained');
 }
 console.log('PASS: verified cash-fund buying/AUM/rank announcements; Korean threshold units, named months, brandless names, investor/metric/currency/date/rank/amount conflicts and ambiguous anchors');
+
+const {category:releaseCategory}=await import(classifyURL);
+const {importance:releaseImportance}=await import(rankURL);
+for(const title of [
+ '키움운용, 코스닥150커버드콜 ETF 11월 분배율 2.52%…5개월 연속 비과세 분배',
+ "키움운용, '코스닥150 ETF' 5개월 연속 분배금 비과세",
+ "키움운용, '코스닥150커버드콜' ETF 이달 주당 153원 분배",
+]){assert.equal(releaseCategory(title),'배당·분배');assert(!releaseImportance({title}).reasons.includes('제도·투자 가능 범위'));}
+for(const title of ['금융위, ETF 분배금 비과세 제도 개정','ETF 분배금 과세 기준 변경','ETF 분배금 비과세 세법 개정'])assert.equal(releaseCategory(title),'제도·시장');
+const releaseFixture=JSON.parse(fs.readFileSync(process.env.NEWS_RELEASE_FIXTURE||'tests/fixtures/syndication-2026-11-27.json','utf8')).articles.map(a=>({...a,category:releaseCategory(a.title)}));
+const representativeIds={payout:'32ecf44fbe7071ac4b1dd9e5282c3e8e75a452245f6767f77f0832a42b839d8d',robot:'ce9f16e1f42f625e7fde40085c939019c5a3ef2e430e25389ad79cb2fec935ba',special:'2fcd8c9d0edd78308cd81f964bdadba4a3666cc92a443ed970a8de56d7839d37'};
+for(const input of [releaseFixture,[...releaseFixture].reverse(),[...releaseFixture].sort(compareImportance)]){
+ const groups=compressFlowTopics(groupStories(input));
+ for(const [kind,id] of Object.entries(representativeIds)){
+  const selected=groups.filter(s=>[s.a,...s.others].some(a=>a.id===id));assert.equal(selected.length,1);
+  assert.equal(selected[0].others.length+1,{payout:9,robot:25,special:10}[kind]);
+  assert(!/이모저모|금융권|소비자포럼/.test(selected[0].a.title));
+  if(kind==='payout'){assert.equal(selected[0].a.summaryKind,'summary');assert.equal(selected[0].a.category,'배당·분배');}
+ }
+ assert(groups.some(s=>/손실 주의보/.test(s.a.title)));
+ assert(groups.some(s=>/휴머노이드.*일평균 거래대금/.test(s.a.title)));
+ assert.deepEqual(new Set(groups.flatMap(s=>[s.a,...s.others]).map(a=>a.url)),new Set(input.map(a=>a.url)));
+ // Filter after grouping: brand/category/search matches cannot destroy the
+ // full edition's product identities or its verified representative.
+ for(const query of [/비과세/,/5000/,/분배금 늘린다/]){
+  const ids=new Set(input.filter(a=>query.test(a.title)).map(a=>a.id));
+  const shown=groupStories(input).filter(s=>[s.a,...s.others].some(a=>ids.has(a.id)));
+  assert.equal(shown.length,1,String(query));
+ }
+}
+const {releaseEventKeys}=await import(announcementURL);
+const payoutOriginal=releaseFixture.find(a=>a.id===representativeIds.payout);
+for(const title of [
+ 'KIWOOM 코스닥150커버드콜액티브 ETF 12월 분배율 2.52%',
+ 'KIWOOM 코스닥150커버드콜액티브 ETF 11월 분배율 2.62%',
+ 'KIWOOM 코스닥150커버드콜액티브 ETF 11월 주당 분배금 154원',
+ 'KIWOOM 코스닥150커버드콜액티브 ETF 11월 분배금 153원 12월3일 지급',
+ 'KIWOOM 코스닥150커버드콜액티브 ETF 11월 분배금 지급 중단',
+ 'KODEX 코스닥150커버드콜액티브 ETF 11월 주당 분배금 153원',
+]){
+ const other={...payoutOriginal,id:'payout-conflict',url:'https://example.com/payout-conflict',title,summary:undefined,summaryKind:undefined};
+ const groups=groupStories([payoutOriginal,other]);assert.equal(groups.length,2,title);
+}
+const exactRobot=releaseFixture.find(a=>/코리아휴머노이드로봇산업.*5551억/.test(a.title));
+for(const title of [
+ 'TIGER 코리아휴머노이드로봇산업 ETF 하루 개인 순매수 5551억원',
+ 'TIGER 코리아휴머노이드로봇산업 ETF 올해 개인 순매수 6551억원',
+ 'TIGER 미국휴머노이드로봇산업 ETF 올해 개인 순매수 5551억원',
+ 'TIGER 코리아휴머노이드로봇산업 ETF 올해 개인 순매도 5551억원',
+]){
+ const other={...exactRobot,id:'flow-conflict',url:'https://example.com/flow-conflict',title};
+ const keys=releaseEventKeys([exactRobot,other]);assert.notEqual(keys.get(exactRobot.id),keys.get(other.id),title);
+}
+console.log('LIVE EDITION: 9 KIWOOM payout, 25 TIGER personal-buying and 10 KODEX special-payout reports each appear once; clean representatives, tax classification, filter context, every source URL and distinct risks preserved');

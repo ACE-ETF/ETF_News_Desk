@@ -7,6 +7,11 @@ from unittest.mock import patch
 spec=importlib.util.spec_from_file_location("pipeline",Path(__file__).with_name("static-news.py"))
 m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
 class PipelineTests(unittest.TestCase):
+    def test_distribution_tax_status_is_not_a_policy_change(self):
+        for title in ["키움운용, 코스닥150커버드콜 ETF 11월 분배율 2.52%…5개월 연속 비과세 분배", "키움운용, 코스닥150 ETF 5개월 연속 분배금 비과세", "삼성운용, 200커버드콜 ETF 특별배당 분할 지급", "키움운용, ETF 이달 주당 153원 분배"]:
+            self.assertEqual(m.category(title),"배당·분배")
+        for title in ["금융위, ETF 분배금 비과세 제도 개정", "ETF 분배금 과세 기준 변경", "ETF 분배금 비과세 세법 개정"]:
+            self.assertEqual(m.category(title),"제도·시장")
     def test_business_window_weekend_and_cutoff(self):
         closed={"2026-11-16"}
         now=datetime(2026,11,17,8,tzinfo=m.KST)

@@ -5,9 +5,12 @@ import {cryptoFlowTopic} from './overseas-events';
 import {marketScope} from './market';
 import {importance} from './ranking';
 import {insightKind} from './insights';
+import {releaseEventKeys,isRoundupTitle} from './announcement-events';
+import {fundFlowAnnouncementKeys} from './fund-flow-announcements';
 export type DisplayStory=Story;
-function coverageKey(s:Story,bondKeys:Map<string,string>,performanceKeys:Map<string,string>){
+function coverageKey(s:Story,bondKeys:Map<string,string>,performanceKeys:Map<string,string>,releaseKeys:Map<string,string>){
  const a=s.a,t=a.title;
+ const release=releaseKeys.get(a.id);if(release)return release;
  const performance=performanceKeys.get(a.id);if(performance)return performance;
  if(isBondAumStory(a))return bondKeys.has(a.id)?'bond-milestone:'+bondKeys.get(a.id):undefined;
  // Keep high-impact changes and distinct editorial perspectives visible.
@@ -39,7 +42,7 @@ function coverageKey(s:Story,bondKeys:Map<string,string>,performanceKeys:Map<str
 }
 function informationScore(a:Article){
  const t=a.title;
- return importance(a).score*100+(a.summaryKind==='summary'?1000:0)+(!/(?:\.\.\.|…|\b(?:inflo|fo|jitte))\s*$/i.test(t)?100:0)+(t.match(/\d[\d,.]*\s*(?:조|억|만|%|million|billion|[MB]\b)/gi)?.length||0)*15+(/연초|올해|일간|주간|월간|\d+일간|\d+개월|\d+년|daily|weekly|monthly|\d+.day|on\s+Oct/i.test(t)?20:0)+Math.min(t.length,150)/10;
+ return (isRoundupTitle(t)?0:1e6)+(a.summaryKind==='summary'?1e5:0)+importance(a).score*100+(!/(?:\.\.\.|…|\b(?:inflo|fo|jitte))\s*$/i.test(t)?100:0)+(t.match(/\d[\d,.]*\s*(?:조|억|만|%|million|billion|[MB]\b)/gi)?.length||0)*15+(/연초|올해|일간|주간|월간|\d+일간|\d+개월|\d+년|daily|weekly|monthly|\d+.day|on\s+Oct/i.test(t)?20:0)+Math.min(t.length,150)/10;
 }
 // Select one informative representative per comparable coverage area. Remaining
 // articles become source links, never another stack of topic/event cards.
@@ -47,11 +50,12 @@ export function compressStoryCoverage(stories:Story[]):Story[]{
  const allArticles=stories.flatMap(s=>[s.a,...s.others]);
  const performanceKeys=performanceEventKeys(allArticles);
  const bondKeys=bondMilestoneKeys(allArticles);
+ const releaseKeys=releaseEventKeys(allArticles,fundFlowAnnouncementKeys(allArticles));
  const buckets=new Map<string,Story[]>();
- for(const s of stories){const key=coverageKey(s,bondKeys,performanceKeys);if(key)buckets.set(key,[...(buckets.get(key)||[]),s])}
+ for(const s of stories){const key=coverageKey(s,bondKeys,performanceKeys,releaseKeys);if(key)buckets.set(key,[...(buckets.get(key)||[]),s])}
  const seen=new Set<string>(),out:Story[]=[];
  for(const s of stories){
-  const key=coverageKey(s,bondKeys,performanceKeys),items=key?buckets.get(key):undefined;
+  const key=coverageKey(s,bondKeys,performanceKeys,releaseKeys),items=key?buckets.get(key):undefined;
   if(!key||!items||items.length<2){out.push(s);continue}if(seen.has(key))continue;seen.add(key);
   const all=items.flatMap(e=>[e.a,...e.others]);
   const sorted=[...all].sort((a,b)=>informationScore(b)-informationScore(a)||b.published.localeCompare(a.published)||a.id.localeCompare(b.id));

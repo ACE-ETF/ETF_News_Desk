@@ -1,6 +1,6 @@
 import type {Article} from './news';
 
-const issuers:[RegExp,string][]=[[/미래에셋(?:자산)?운용|미래운용|미래에셋[,，]|TIGER/i,'TIGER'],[/우리(?:자산)?운용|\bWON\b/i,'WON'],[/KB(?:자산)?운용|RISE/i,'RISE'],[/한국투자(?:신탁)?운용|한투운용|\bACE\b/i,'ACE'],[/삼성(?:자산)?운용|KODEX/i,'KODEX'],[/신한(?:자산)?운용|\bSOL\b/i,'SOL'],[/한화(?:자산)?운용|\bPLUS\s*[가-힣]/i,'PLUS'],[/키움(?:투자)?(?:자산)?운용|KIWOOM/i,'KIWOOM']];
+const issuers:[RegExp,string][]=[[/미래에셋(?:자산)?운용|미래운용|미래에셋(?=[\s'‘“′,，])|TIGER/i,'TIGER'],[/우리(?:자산)?운용|\bWON\b/i,'WON'],[/KB(?:자산)?운용|RISE/i,'RISE'],[/한국투자(?:신탁)?운용|한투운용|\bACE\b/i,'ACE'],[/삼성(?:자산)?운용|KODEX/i,'KODEX'],[/신한(?:자산)?운용|\bSOL\b/i,'SOL'],[/한화(?:자산)?운용|\bPLUS\s*[가-힣]/i,'PLUS'],[/키움(?:투자)?(?:자산)?운용|KIWOOM/i,'KIWOOM']];
 const compact=(s:string)=>s.normalize('NFKC').replace(/美/g,'미국').replace(/[\s'"‘’“”]/g,'').toUpperCase();
 const near=(a:Article,b:Article)=>a.date===b.date&&Math.abs(Date.parse(a.published)-Date.parse(b.published))<=18*3600000;
 const issuer=(a:Article)=>{const names=issuers.filter(([r])=>r.test(a.title)).map(([,n])=>n);return names.length===1?names[0]:''};
@@ -159,6 +159,90 @@ export function announcementEventKeys(articles:Article[]):Map<string,string>{
   // become a bridge. Exact product aliases still resolve without a weight.
   if(ownWeights.length>1||!ownWeights.length&&values.length>1)continue;
   assign(r.a.id,[['constituent-addition',r.issuer,r.a.date,product,'ANTHROPIC',ownWeights[0]??values[0]??'unspecified'].join(':')]);
+ }
+ return keys;
+}
+
+export function isRoundupTitle(title:string){return /이모저모|금융권|(?:外|외)\s*$|\.{3}시각장애인|소비자\s*포럼/.test(title)}
+
+// Reconcile product aliases and the measurements of a release before headline
+// similarity. Product names are learned from this edition, not a ticker list.
+export function releaseEventKeys(articles:Article[],claimed:Map<string,string>=new Map()):Map<string,string>{
+ const keys=new Map<string,string>();
+ const named=(s:string)=>[...new Set([...s.matchAll(/(RISE|TIGER|KODEX|ACE|SOL|PLUS|KIWOOM)(?!ETF)([가-힣A-Z0-9&+().%-]{2,75}?)(?=ETF|[,;:])/g)].map(m=>m[1]+m[2]).filter(n=>!/순매수|개인|특별배당|자금|분배|ETF/.test(n)))];
+ const relatedName=(short:string,long:string)=>short===long||long.startsWith(short)&&/^(?:로봇)?(?:산업)?(?:액티브)?$/.test(long.slice(short.length));
+ const rows=articles.map(a=>({a,issuer:issuer(a),title:compact(a.title),body:body(a)})).filter(r=>r.issuer);
+ const catalog=[...new Set(rows.flatMap(r=>[...named(r.title),...named(r.body)]))]
+  .filter(n=>/휴머노이드|커버드콜/.test(n)&&!/^(?:RISE|TIGER|KODEX|ACE|SOL|PLUS|KIWOOM)커버드콜$/.test(n)).sort((a,b)=>b.length-a.length||a.localeCompare(b));
+ const products=catalog.filter(n=>!catalog.some(other=>other!==n&&relatedName(n,other)));
+ const features=[/코스닥150/,/코스피200|(?:^|KODEX|TIGER|RISE|KIWOOM)200/,/휴머노이드/,/반도체/,/머니마켓/,/커버드콜/,/레버리지/,/인버스/,/미국/,/글로벌/,/중국/,/일본/];
+ const identity=(r:typeof rows[number])=>{
+  const names=named(r.title);
+  const candidates=products.filter(p=>{
+   if(!p.startsWith(r.issuer))return false;
+   if(names.some(n=>!new RegExp('^'+r.issuer+'커버드콜$').test(n)))return names.every(n=>relatedName(n,p));
+   const quoted=[...r.a.title.matchAll(/['‘“"]([^'’”"]+)['’”"]/g)].map(m=>compact(m[1]).replace(/ETF$/,''));
+   if(quoted.some(q=>/휴머노이드|커버드콜/.test(q)&&!relatedName(r.issuer+q,p)&&!p.includes(q)))return false;
+   const description=r.title.replace(/반도체(?:에서|서)로봇|반도체대신/g,'로봇');
+   const present=features.filter(f=>f.test(description));
+   // A special semiconductor dividend describes the dividend source, not
+   // another fund. It cannot change the named covered-call identity.
+   const compatible=present.filter(f=>!(f.source==='반도체'&&/특별배당/.test(r.title)));
+   return compatible.length>0&&compatible.every(f=>f.test(p))&&/휴머노이드|커버드콜|코스닥150/.test(r.title);
+  });
+  return candidates.length===1?candidates[0]:'';
+ };
+ const period=(s:string,date:string)=>/하루|일간|일일|당일|전일|어제/.test(s)?'daily':/최근한달|최근1개월|1개월|월간/.test(s)?'rolling-month':/연초|올해|올들어|올개인/.test(s)?'ytd':s.match(/(\d{1,2})월/)?.[1]?'month:'+s.match(/(\d{1,2})월/)![1]:/이달|이번달/.test(s)?'month:'+Number(date.slice(5,7)):'';
+ const amounts=(s:string)=>[...s.matchAll(/(\d[\d,]*(?:\.\d+)?)(천)?(조|억)(?:(\d[\d,]*)억)?/g)].map(m=>{
+  const raw=(m[4]||m[1]).replace(/,/g,''),unit=(m[2]?1000:1)*(m[3]==='조'?1e12:1e8),decimals=raw.split('.')[1]?.length||0;
+  return {value:Number(m[1].replace(/,/g,''))*unit+Number((m[4]||'0').replace(/,/g,''))*1e8,
+   step:Math.pow(10,(raw.replace('.','').match(/0*$/)?.[0].length||0)-decimals)*(m[4]?1e8:unit),
+   currency:/^(?:원)?(?:달러|USD|유로|EUR|弗)/.test(s.slice((m.index||0)+m[0].length))?'foreign':'KRW'};
+ });
+ const scoped=rows.map(r=>({...r,product:identity(r)})).filter(r=>r.product);
+ const claimedProducts=new Set(scoped.filter(r=>claimed.has(r.a.id)).map(r=>r.product));
+ const flows=scoped.filter(r=>!claimedProducts.has(r.product)&&/개인|순매수|순매도|순유입|순유출/.test(r.title)&&!/거래대금|기관|외국인|목표|전망|예상|비교/.test(r.title)).map(r=>{
+  const text=r.body||r.title;
+  const values=amounts(text),value=values[0];
+  return {...r,value,horizon:period(r.title,r.a.date)||period(r.body,r.a.date),direction:/순매도|순유출|유출/.test(r.title)?'sell':'buy'};
+ }).filter((r):r is typeof r&{value:NonNullable<typeof r.value>}=>!!r.value);
+ for(const r of flows){
+  const peers=flows.filter(p=>p.product===r.product&&p.a.date===r.a.date&&Math.abs(Date.parse(p.a.published)-Date.parse(r.a.published))<=18*3600000&&p.direction===r.direction&&p.value.currency===r.value.currency&&(!r.horizon||!p.horizon||r.horizon===p.horizon));
+  const periods=[...new Set(peers.map(p=>p.horizon).filter(Boolean))];if(!r.horizon&&periods.length>1)continue;
+  const verified=peers.filter(p=>p.body);
+  const pool=verified.length?verified:peers;
+  const step=Math.min(...pool.map(p=>p.value.step));
+  const anchors=pool.filter(p=>p.value.step===step&&r.value.value<=p.value.value&&p.value.value<r.value.value+r.value.step);
+  const values=[...new Set(anchors.map(p=>p.value.value))];
+  if(values.length===1)keys.set(r.a.id,['release-flow',r.product,r.a.date,r.direction,r.value.currency,r.horizon||periods[0]||'unspecified',values[0]].join(':'));
+ }
+ const payoutDetails=(s:string)=>({
+  amount:s.match(/(?:분배금|배당금|좌당|주당)(?:은|이|는|을|를|약)*(\d[\d,]*)원/)?.[1]?.replace(/,/g,'')||s.match(/(?:이달|월)(\d[\d,]*)원분배/)?.[1]?.replace(/,/g,'')||'',
+  yield:s.match(/분배율(?:은|이|는|약)*(\d+(?:\.\d+)?)%/)?.[1]||'',
+  payday:s.match(/\d{1,2}\/(\d{1,2})지급/)?.[1]||s.match(/(\d{1,2})일(?:분배금)?지급/)?.[1]||'',
+  paymonth:s.match(/(\d{1,2})\/\d{1,2}지급/)?.[1]||s.match(/(\d{1,2})월\d{1,2}일(?:분배금)?지급/)?.[1]||'',
+  tax:s.match(/(\d+)개월연속(?:분배금)?비과세|(?:상장후)?(\d+)차례/)?.slice(1).find(Boolean)||'',
+ });
+ const payouts=scoped.filter(r=>/분배|특별배당|배당금|배당.*지급/.test(r.title)&&!/손실|주의보|위험|비교|전망|칼럼|오피니언|제도|법안|개정|금융위|금감원/.test(r.title)).map(r=>{
+  const months=[...r.title.matchAll(/(\d{1,2})(?:[·ㆍ‧∙・,~∼-](\d{1,2}))?월(?!\d{1,2}일)/g)].flatMap(m=>[m[1],m[2]].filter(Boolean).map(Number)).sort((a,b)=>a-b);
+  const special=/특별배당|특별분배/.test(r.title);
+  const action=/중단|미지급/.test(r.title)?'suspend':/삭감|축소/.test(r.title)?'cut':/정정|연기|정책변경/.test(r.title)?'change':'pay';
+  const titleDetails=payoutDetails(r.title),bodyDetails=payoutDetails(r.body);
+  const details=Object.fromEntries(Object.entries(titleDetails).map(([k,v])=>[k,v||bodyDetails[k as keyof typeof bodyDetails]]));
+  return {...r,months,special,action,details};
+ });
+ for(const r of payouts){
+  const peers=payouts.filter(p=>p.product===r.product&&p.a.date===r.a.date&&Math.abs(Date.parse(p.a.published)-Date.parse(r.a.published))<=18*3600000&&p.action===r.action);
+  const schedules=[...new Set(peers.filter(p=>p.special&&p.months.length>1).map(p=>p.months.join(',')))];
+  const month=r.months.length?r.months.join(','):String(Number(r.a.date.slice(5,7)));
+  const schedule=r.special&&schedules.length===1&&(!r.months.length||r.months.every(m=>schedules[0].split(',').includes(String(m))))?schedules[0]:month;
+  const eligible=peers.filter(p=>{
+   const pm=p.months.length?p.months.join(','):String(Number(p.a.date.slice(5,7)));
+   return pm===schedule||r.special&&p.special&&schedules.length===1&&(!p.months.length||p.months.every(m=>schedule.split(',').includes(String(m))));
+  });
+  const detailKeys=['amount','yield','payday','paymonth','tax'];
+  const canonical=detailKeys.map(k=>{const values=[...new Set(eligible.map(p=>p.details[k]).filter(Boolean))];return r.details[k]||(values.length===1?values[0]:'?')});
+  keys.set(r.a.id,['release-payout',r.product,r.a.date,r.action,schedule,...canonical].join(':'));
  }
  return keys;
 }

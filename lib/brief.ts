@@ -1,5 +1,5 @@
 import {launchEventKeys} from './launch-events';
-import {announcementEventKeys} from './announcement-events';
+import {announcementEventKeys,releaseEventKeys,isRoundupTitle} from './announcement-events';
 import {fundFlowAnnouncementKeys} from './fund-flow-announcements';
 import {isBondAumStory,bondMilestoneKeys} from './bond-milestones';
 import {canJoinUnspecifiedFlow} from './overseas-events';
@@ -123,12 +123,18 @@ function productAnnouncementKey(a:Article):string {
  return '';
 }
 
+function preferRepresentative(a:Article,b:Article){
+ if(isRoundupTitle(a.title)!==isRoundupTitle(b.title))return !isRoundupTitle(a.title);
+ if((a.summaryKind==='summary')!==(b.summaryKind==='summary'))return a.summaryKind==='summary';
+ return !!a.summary&&!b.summary;
+}
+
 export function groupStories(articles:Article[],enabled=true):Story[]{
  const batteryAnchors = new Set(articles.filter(a => /전고체배터리ESS\s*TOP2플러스/i.test(a.title)).map(batteryMilestone).filter(Boolean));
  const launchKeys=launchEventKeys(articles);
- const announcementKeys=announcementEventKeys(articles);
- const performanceKeys=performanceEventKeys(articles);
  const flowAnnouncementKeys=fundFlowAnnouncementKeys(articles);
+ const announcementKeys=new Map([...announcementEventKeys(articles),...releaseEventKeys(articles,flowAnnouncementKeys)]);
+ const performanceKeys=performanceEventKeys(articles);
  const distributionKeys=distributionEventKeys(articles);
  const bondKeys=bondMilestoneKeys(articles);
  const storyKey=(a:Article)=>{const t=a.title;
@@ -138,7 +144,7 @@ export function groupStories(articles:Article[],enabled=true):Story[]{
  const result:Story[]=[];
  for(const a of articles){
   const found=enabled?result.find(x=>{const productA=productAnnouncementKey(a),productB=productAnnouncementKey(x.a);if(productA&&productB&&Math.abs(Date.parse(a.published)-Date.parse(x.a.published))<=24*3600000){const deadline=(t:string)=>t.match(/(\d{1,2})일까지/)?.[1];const da=deadline(a.title),db=deadline(x.a.title);if(da&&db&&da!==db)return false;return productA===productB;}const aa=announcementKeys.get(a.id),ab=announcementKeys.get(x.a.id);if(aa&&ab)return aa===ab;const la=launchKeys.get(a.id),lb=launchKeys.get(x.a.id);if(la&&lb)return la===lb;const fa=flowAnnouncementKeys.get(a.id),fb=flowAnnouncementKeys.get(x.a.id);if(fa&&fb)return fa===fb;const pa=performanceKeys.get(a.id),pb=performanceKeys.get(x.a.id);if(pa&&pb)return pa===pb;const seminar=aceAllocationSeminarKey(a);if(seminar&&seminar===aceAllocationSeminarKey(x.a))return true;const comic=kiwoomComicKey(a);if(comic&&comic===kiwoomComicKey(x.a))return true;const battery=batteryMilestone(a);if(battery&&batteryAnchors.has(battery)&&battery===batteryMilestone(x.a))return true;const guide=taxGuideKey(a);if(guide&&taxGuideAnchors.has(guide)&&guide===taxGuideKey(x.a))return true;if(isBondAumStory(a)&&isBondAumStory(x.a)){const ka=bondKeys.get(a.id),kb=bondKeys.get(x.a.id);return !!ka&&ka===kb}const da=distributionKeys.get(a.id),db=distributionKeys.get(x.a.id);if(da&&db)return da===db;const flow=canJoinUnspecifiedFlow(a,x.a,articles);if(flow!==undefined)return flow;const milestone=canJoinRecordMilestone(a,x.a,articles);if(milestone!==undefined)return milestone;const key=storyKey(a);return (key&&key===storyKey(x.a)&&a.date===x.a.date)||canGroupStories(a,x.a)}):undefined;
-  if(found){if(![found.a,...found.others].some(b=>b.id===a.id||b.url===a.url)){if(a.summaryKind==='summary'&&found.a.summaryKind!=='summary'||a.summary&&!found.a.summary){found.others.push(found.a);found.a=a}else found.others.push(a)}}else result.push({a,others:[]});
+  if(found){if(![found.a,...found.others].some(b=>b.id===a.id||b.url===a.url)){if(preferRepresentative(a,found.a)){found.others.push(found.a);found.a=a}else found.others.push(a)}}else result.push({a,others:[]});
  }
  if(!enabled)return result;
  // A verified representative may be encountered after two partial groups.
@@ -151,7 +157,7 @@ export function groupStories(articles:Article[],enabled=true):Story[]{
   if(!prior){merged.push(story);if(key)byAnnouncement.set(key,story);continue}
   for(const a of members){
    if([prior.a,...prior.others].some(b=>b.id===a.id||b.url===a.url))continue;
-   if(a.summaryKind==='summary'&&prior.a.summaryKind!=='summary'||a.summary&&!prior.a.summary){prior.others.push(prior.a);prior.a=a}else prior.others.push(a);
+   if(preferRepresentative(a,prior.a)){prior.others.push(prior.a);prior.a=a}else prior.others.push(a);
   }
  }
  return merged;

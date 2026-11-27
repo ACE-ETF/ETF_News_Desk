@@ -64,7 +64,11 @@ export default function Page(){
  useEffect(()=>{setVisible(10)},[date,cat,query,brand,sort,highOnly,group,mode,selectedKeyword,market,includeRoutine]);
  const marketArticles=useMemo(()=>groupStories(data.articles.filter(a=>includeRoutine||!isRoutineStory(a))).filter(s=>marketGroupMatches(s,market)).flatMap(s=>[s.a,...s.others]),[data,market,includeRoutine]);
  const filtered=useMemo(()=>marketArticles.filter(a=>(!selectedKeyword||(selectedKeyword==='ACE ETF'?isAceStory(a):issueKeywords(a).subject===selectedKeyword))&&(cat==='전체'||a.category===cat)&&(brand==='전체 브랜드'||a.brands.includes(brand))&&(!highOnly||importance(a).level==='상')&&(!query||[a.title,a.source,...a.brands].join(' ').toLowerCase().includes(query.toLowerCase()))).sort((a,b)=>(market==='all'?marketOrder(a)-marketOrder(b):0)||(sort==='importance'?compareImportance(a,b):b.published.localeCompare(a.published))),[marketArticles,market,cat,brand,query,sort,highOnly,selectedKeyword]);
- const eventGroups=useMemo(()=>groupStories(filtered,group),[filtered,group]);
+ const eventGroups=useMemo(()=>{
+  const matching=new Set(filtered.map(a=>a.id));
+  const ordered=[...marketArticles].sort((a,b)=>(market==='all'?marketOrder(a)-marketOrder(b):0)||(sort==='importance'?compareImportance(a,b):b.published.localeCompare(a.published)));
+  return groupStories(ordered,group).filter(s=>[s.a,...s.others].some(a=>matching.has(a.id)));
+ },[marketArticles,filtered,group,market,sort]);
  const groups=useMemo(()=>group?compressStoryCoverage(eventGroups):eventGroups,[eventGroups,group]);
  const brief=useMemo(()=>briefStories(groups),[groups]);
  const keywords=[...new Set(['ACE ETF',...briefStories(groupStories([...marketArticles].sort((a,b)=>(market==='all'?marketOrder(a)-marketOrder(b):0)||compareImportance(a,b)))).map(s=>issueKeywords(s.a).subject)])].filter(k=>!['ETF 시장','자산운용업계'].includes(k)).slice(0,6);
