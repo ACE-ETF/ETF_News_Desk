@@ -522,7 +522,7 @@ for(const input of [releaseFixture,[...releaseFixture].reverse(),[...releaseFixt
  const groups=compressFlowTopics(groupStories(input));
  for(const [kind,id] of Object.entries(representativeIds)){
   const selected=groups.filter(s=>[s.a,...s.others].some(a=>a.id===id));assert.equal(selected.length,1);
-  assert.equal(selected[0].others.length+1,{payout:9,robot:25,special:10}[kind]);
+  assert.equal(selected[0].others.length+1,{payout:9,robot:25,special:11}[kind]);
   assert(!/이모저모|금융권|소비자포럼/.test(selected[0].a.title));
   if(kind==='payout'){assert.equal(selected[0].a.summaryKind,'summary');assert.equal(selected[0].a.category,'배당·분배');}
  }
@@ -560,4 +560,4 @@ for(const title of [
  const other={...exactRobot,id:'flow-conflict',url:'https://example.com/flow-conflict',title};
  const keys=releaseEventKeys([exactRobot,other]);assert.notEqual(keys.get(exactRobot.id),keys.get(other.id),title);
 }
-console.log('LIVE EDITION: 9 KIWOOM payout, 25 TIGER personal-buying and 10 KODEX special-payout reports each appear once; clean representatives, tax classification, filter context, every source URL and distinct risks preserved');
+console.log('LIVE EDITION: 9 KIWOOM payout, 25 TIGER personal-buying and 11 KODEX special-payout reports each appear once; clean representatives, tax classification, filter context, every source URL and distinct risks preserved');

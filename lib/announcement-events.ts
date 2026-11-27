@@ -188,7 +188,9 @@ export function releaseEventKeys(articles:Article[],claimed:Map<string,string>=n
    // A special semiconductor dividend describes the dividend source, not
    // another fund. It cannot change the named covered-call identity.
    const compatible=present.filter(f=>!(f.source==='반도체'&&/특별배당/.test(r.title)));
-   return compatible.length>0&&compatible.every(f=>f.test(p))&&/휴머노이드|커버드콜|코스닥150/.test(r.title);
+   const productDescription=compatible.length>0&&compatible.every(f=>f.test(p))&&/휴머노이드|커버드콜|코스닥150/.test(r.title);
+   const abbreviatedPayout=!compatible.length&&/특별배당/.test(r.title)&&/ETF/.test(r.title)&&/분배율|분배금|반영/.test(r.title);
+   return productDescription||abbreviatedPayout;
   });
   return candidates.length===1?candidates[0]:'';
  };
@@ -200,6 +202,9 @@ export function releaseEventKeys(articles:Article[],claimed:Map<string,string>=n
    currency:/^(?:원)?(?:달러|USD|유로|EUR|弗)/.test(s.slice((m.index||0)+m[0].length))?'foreign':'KRW'};
  });
  const scoped=rows.map(r=>({...r,product:identity(r)})).filter(r=>r.product);
+ for(const r of scoped.filter(r=>/거래대금/.test(r.title))){
+  keys.set(r.a.id,['release-volume',r.product,r.a.date,period(r.title,r.a.date),...amounts(r.title).map(v=>v.value+':'+v.currency),r.title.match(/(\d+)위/)?.[1]||''].join(':'));
+ }
  const claimedProducts=new Set(scoped.filter(r=>claimed.has(r.a.id)).map(r=>r.product));
  const flows=scoped.filter(r=>!claimedProducts.has(r.product)&&/개인|순매수|순매도|순유입|순유출/.test(r.title)&&!/거래대금|기관|외국인|목표|전망|예상|비교/.test(r.title)).map(r=>{
   const text=r.body||r.title;
