@@ -1,6 +1,6 @@
 import type {Article} from './news';
 
-const issuers:[RegExp,string][]=[[/미래에셋(?:자산)?운용|미래운용|미래에셋(?=[\s'‘“′,，])|TIGER/i,'TIGER'],[/우리(?:자산)?운용|\bWON\b/i,'WON'],[/KB(?:자산)?운용|RISE/i,'RISE'],[/한국투자(?:신탁)?운용|한투운용|\bACE\b/i,'ACE'],[/삼성(?:자산)?운용|KODEX/i,'KODEX'],[/신한(?:자산)?운용|\bSOL\b/i,'SOL'],[/한화(?:자산)?운용|\bPLUS\s*[가-힣]/i,'PLUS'],[/키움(?:투자)?(?:자산)?운용|KIWOOM/i,'KIWOOM']];
+const issuers:[RegExp,string][]=[[/미래에셋(?:자산)?운용|미래운용|미래에셋(?=[\s'‘“′,，])|TIGER/i,'TIGER'],[/우리(?:자산)?운용|\bWON\b/i,'WON'],[/KB(?:자산)?운용|RISE/i,'RISE'],[/한국투자(?:신탁)?운용|한투운용|\bACE\b/i,'ACE'],[/삼성(?:자산)?운용|KODEX/i,'KODEX'],[/신한(?:자산)?운용|\bSOL\b/i,'SOL'],[/한화(?:자산)?운용|\bPLUS\s*[가-힣]/i,'PLUS'],[/키움(?:투자)?(?:자산)?운용|키움(?=\s|[,，])|KIWOOM/i,'KIWOOM']];
 const compact=(s:string)=>s.normalize('NFKC').replace(/美/g,'미국').replace(/[\s'"‘’“”]/g,'').toUpperCase();
 const near=(a:Article,b:Article)=>a.date===b.date&&Math.abs(Date.parse(a.published)-Date.parse(b.published))<=18*3600000;
 const issuer=(a:Article)=>{const names=issuers.filter(([r])=>r.test(a.title)).map(([,n])=>n);return names.length===1?names[0]:''};
@@ -170,7 +170,10 @@ export function isRoundupTitle(title:string){return /이모저모|금융권|(?:�
 export function releaseEventKeys(articles:Article[],claimed:Map<string,string>=new Map()):Map<string,string>{
  const keys=new Map<string,string>();
  const named=(s:string)=>[...new Set([...s.matchAll(/(RISE|TIGER|KODEX|ACE|SOL|PLUS|KIWOOM)(?!ETF)([가-힣A-Z0-9&+().%-]{2,75}?)(?=ETF|[,;:])/g)].map(m=>m[1]+m[2]).filter(n=>!/순매수|개인|특별배당|자금|분배|ETF/.test(n)))];
- const relatedName=(short:string,long:string)=>short===long||long.startsWith(short)&&/^(?:로봇)?(?:산업)?(?:액티브)?$/.test(long.slice(short.length));
+ const relatedName=(short:string,long:string)=>{
+  const match=(s:string,l:string)=>s===l||l.startsWith(s)&&/^(?:로봇)?(?:산업)?(?:액티브)?$/.test(l.slice(s.length));
+  return match(short,long)||!/(?:미국|글로벌|중국|일본)/.test(short)&&match(short.replace(/코리아|한국/g,''),long.replace(/코리아|한국/g,''));
+ };
  const rows=articles.map(a=>({a,issuer:issuer(a),title:compact(a.title),body:body(a)})).filter(r=>r.issuer);
  const catalog=[...new Set(rows.flatMap(r=>[...named(r.title),...named(r.body)]))]
   .filter(n=>/휴머노이드|커버드콜/.test(n)&&!/^(?:RISE|TIGER|KODEX|ACE|SOL|PLUS|KIWOOM)커버드콜$/.test(n)).sort((a,b)=>b.length-a.length||a.localeCompare(b));
@@ -212,14 +215,14 @@ export function releaseEventKeys(articles:Article[],claimed:Map<string,string>=n
   return {...r,value,horizon:period(r.title,r.a.date)||period(r.body,r.a.date),direction:/순매도|순유출|유출/.test(r.title)?'sell':'buy'};
  }).filter((r):r is typeof r&{value:NonNullable<typeof r.value>}=>!!r.value);
  for(const r of flows){
-  const peers=flows.filter(p=>p.product===r.product&&p.a.date===r.a.date&&Math.abs(Date.parse(p.a.published)-Date.parse(r.a.published))<=18*3600000&&p.direction===r.direction&&p.value.currency===r.value.currency&&(!r.horizon||!p.horizon||r.horizon===p.horizon));
+  const peers=flows.filter(p=>p.product===r.product&&(p.a.date===r.a.date||r.horizon!=='daily'&&p.horizon!=='daily')&&Math.abs(Date.parse(p.a.published)-Date.parse(r.a.published))<=18*3600000&&p.direction===r.direction&&p.value.currency===r.value.currency&&(!r.horizon||!p.horizon||r.horizon===p.horizon));
   const periods=[...new Set(peers.map(p=>p.horizon).filter(Boolean))];if(!r.horizon&&periods.length>1)continue;
   const verified=peers.filter(p=>p.body);
   const pool=verified.length?verified:peers;
   const step=Math.min(...pool.map(p=>p.value.step));
   const anchors=pool.filter(p=>p.value.step===step&&r.value.value<=p.value.value&&p.value.value<r.value.value+r.value.step);
   const values=[...new Set(anchors.map(p=>p.value.value))];
-  if(values.length===1)keys.set(r.a.id,['release-flow',r.product,r.a.date,r.direction,r.value.currency,r.horizon||periods[0]||'unspecified',values[0]].join(':'));
+  if(values.length===1)keys.set(r.a.id,['release-flow',r.product,peers.map(p=>p.a.date).sort()[0],r.direction,r.value.currency,r.horizon||periods[0]||'unspecified',values[0]].join(':'));
  }
  const payoutDetails=(s:string)=>({
   amount:s.match(/(?:분배금|배당금|좌당|주당)(?:은|이|는|을|를|약)*(\d[\d,]*)원/)?.[1]?.replace(/,/g,'')||s.match(/(?:이달|월)(\d[\d,]*)원분배/)?.[1]?.replace(/,/g,'')||'',
@@ -237,7 +240,7 @@ export function releaseEventKeys(articles:Article[],claimed:Map<string,string>=n
   return {...r,months,special,action,details};
  });
  for(const r of payouts){
-  const peers=payouts.filter(p=>p.product===r.product&&p.a.date===r.a.date&&Math.abs(Date.parse(p.a.published)-Date.parse(r.a.published))<=18*3600000&&p.action===r.action);
+  const peers=payouts.filter(p=>p.product===r.product&&Math.abs(Date.parse(p.a.published)-Date.parse(r.a.published))<=18*3600000&&p.action===r.action);
   const schedules=[...new Set(peers.filter(p=>p.special&&p.months.length>1).map(p=>p.months.join(',')))];
   const month=r.months.length?r.months.join(','):String(Number(r.a.date.slice(5,7)));
   const schedule=r.special&&schedules.length===1&&(!r.months.length||r.months.every(m=>schedules[0].split(',').includes(String(m))))?schedules[0]:month;
@@ -247,7 +250,7 @@ export function releaseEventKeys(articles:Article[],claimed:Map<string,string>=n
   });
   const detailKeys=['amount','yield','payday','paymonth','tax'];
   const canonical=detailKeys.map(k=>{const values=[...new Set(eligible.map(p=>p.details[k]).filter(Boolean))];return r.details[k]||(values.length===1?values[0]:'?')});
-  keys.set(r.a.id,['release-payout',r.product,r.a.date,r.action,schedule,...canonical].join(':'));
+  keys.set(r.a.id,['release-payout',r.product,eligible.map(p=>p.a.date).sort()[0]||r.a.date,r.action,schedule,...canonical].join(':'));
  }
  return keys;
 }

@@ -1,5 +1,220 @@
 {
+  "expectedReleaseCounts": {
+    "payout": 10,
+    "robot": 27,
+    "special": 11
+  },
   "articles": [
+    {
+      "id": "4b39a79fb2f70bb05d582a383ce06c7f8797d3fff1773f9e19b33c0e3a7c6903",
+      "title": "자산운용사, '스페이스X·앤트로픽' ETF 경쟁 심화 대비 성적은 저조",
+      "url": "https://news.google.com/rss/articles/CBMiaEFVX3lxTE5sMVBrNV9oeUQ5bTB6VTBrblpOS2pCTTU0ZDNHQUJDSlN6aElQbDVoRnkxRXR0c1YyMnlrYlVzLUliVFVMV2gtY1dpTlJ2NlR3Y0xfVUtRNU1ISjY5Q2RySlVZLXdvSTNm?oc=5",
+      "source": "FETV",
+      "published": "2026-11-26T22:00:00.000Z",
+      "date": "2026-11-27",
+      "category": "상품·전략",
+      "brands": [],
+      "language": "ko"
+    },
+    {
+      "id": "50f076e8c0480d8a3041b62cf8d2b326408d180dfdef9c5d87d12f529f93ae77",
+      "title": "ETF 다음은 대체투자…김우석의 선택은 이시완",
+      "url": "https://news.google.com/rss/articles/CBMiT0FVX3lxTFBER2FjQVVuYTA0blRCeUZSRW5CalNTOWF2QnNOUHlFOGtHMEluZW5DZ0xGRFRpNGNTQlplb0dfbzZ2bXVBcS1NQ0VlTGNyWkE?oc=5",
+      "source": "딜사이트",
+      "published": "2026-11-26T21:40:00.000Z",
+      "date": "2026-11-27",
+      "category": "상품·전략",
+      "brands": [],
+      "language": "ko"
+    },
+    {
+      "id": "a48933eeb49555444a03fcb1b0a189e8be1a8afdf60583e42dd741442687a6e2",
+      "title": "\"잘나가는 종목만 모았다더니\"…개미들 울린 ETF의 함정 [분석+]",
+      "url": "https://news.google.com/rss/articles/CBMiWkFVX3lxTE5zZHl0VVlkNUZIb09pZXM4a0VKQzlSWUF2TUhIZGV2VElnZnRZbm9xdEhfMWFsSTdVRGNmVy0zUXJsN3RVQVM3eXpPU09ZZTQ4WEhrdExuYjkxdw?oc=5",
+      "source": "한국경제",
+      "published": "2026-11-26T21:30:04.000Z",
+      "date": "2026-11-27",
+      "category": "상품·전략",
+      "brands": [],
+      "language": "ko"
+    },
+    {
+      "id": "b0bea035c47d2f87c9261fef3b0330e2177e7357465427ae0d80e0a7897cc67d",
+      "title": "‘트리플 할인’일 때 담아서 키워볼까 … 1년 만에 48% 오른 ETF",
+      "url": "https://news.google.com/rss/articles/CBMiUkFVX3lxTFBVejhlN3p2TDJFbGdnQndrd1Y2bTU5eUhRUjdpSlNrazFrUWVrRWJ6VE5RZW5VNG1md21VOENhOTZiLWFPTkpNbS1lN1pUWmtFV1E?oc=5",
+      "source": "매일경제",
+      "published": "2026-11-26T20:00:00.000Z",
+      "date": "2026-11-27",
+      "category": "상품·전략",
+      "brands": [],
+      "language": "ko"
+    },
+    {
+      "id": "c3e533206798f3f2aa23c6bd3c6e27a716cc4cd6231c16dc5ec3dfe9dafcd2f7",
+      "title": "Inflation May Have Peaked: Economists Split on Fed Hikes - iShares 20+ Year Treasury Bond ETF (NASDAQ:TLT",
+      "url": "https://news.google.com/rss/articles/CBMitAFBVV95cUxNYW5JR2VHbjc1M3UzemxxY0Iwb3htS3cwR1ZLR0VXd0dlc21HT0RhXzFwRmI2UVRrTW5nOTRRRkdHeU1FZlZ0TE9QOTg5NjJBQmF2aGhfTVY0T1hoSmhDdWc3QllCNmNjWU05YU16S2VSSFVRVURVMGtaNjVoZDU5UmFEc0VHNGxLYmdOaDI1RFYzUFBrZzUtNmxfdnVpaTAzVGE3blZiU0lReFQ1REdLaFBGYmI?oc=5",
+      "source": "Benzinga",
+      "published": "2026-11-26T18:20:06.000Z",
+      "date": "2026-11-27",
+      "category": "상품·전략",
+      "brands": [],
+      "language": "en",
+      "marketHint": "overseas",
+      "summary": "인플레이션 5 월 피크 : Economists는 Fed Hikes에 분할 - iShares 20 + 년 재무 Bond ETF ( NASDAQ : TLT",
+      "summaryKind": "title_translation",
+      "summarySource": "https://news.google.com/rss/articles/CBMitAFBVV95cUxNYW5JR2VHbjc1M3UzemxxY0Iwb3htS3cwR1ZLR0VXd0dlc21HT0RhXzFwRmI2UVRrTW5nOTRRRkdHeU1FZlZ0TE9QOTg5NjJBQmF2aGhfTVY0T1hoSmhDdWc3QllCNmNjWU05YU16S2VSSFVRVURVMGtaNjVoZDU5UmFEc0VHNGxLYmdOaDI1RFYzUFBrZzUtNmxfdnVpaTAzVGE3blZiU0lReFQ1REdLaFBGYmI?oc=5"
+    },
+    {
+      "id": "55ca2f2466494fc17c4223a4b458ece3536582e115d7c8a0aef38788ae87e839",
+      "title": "Why Rolls Royce Through ETFs Could Change The Risk You Carry",
+      "url": "https://news.google.com/rss/articles/CBMi4AFBVV95cUxQT29lZTB1ZDQ4WEJjRkc5eE1XVWhEN2FLYlVhYzl2amJ5bzVEa0JWLVdZZjMwV3FQR3dQeFp1akZPa3djRmZ6Z0JzbExuR2V1NEl1QnZjdzc1dWRQMFJaSExiS3lsLVhPMmNaVERmNVVLa1pKNk12dWQ5aHc1OXpDRjBMVTQ1X3NnVFo4czVMcUFrZUxhT0dKM3lvM25kQXZuN0dKWkJ1SW9vLUpCLWNGQ09FWVNfTFgzM2trSFpxeWpacUdNeHdUWWdnM1dkbE9Qb3ZrWk9xd3NSci1ud1RJa9IB5gFBVV95cUxPVWM3THAzdl8ta1NrWmV5eE53cHoyY2RmdWtsOU5OaW1KWGlMa3dFRUlJMzRGREhkTkdEYmdqOEpXakRaWE9WYzNWWWhEZEZRTkNtdUVfdi0wczJnZ2pvRk93dWdHcGlILWhoYWNVd1MwZmgzNDMyYTIwcmJaZEk3MGsyZklzdjJxU3UyZ3VVME5YRWNYY0JmME9rcUxON2plNEpJWWVUVkVnbmQ4ZW01WEMwWlBEUlBFZWJqcHpET2kxeXhnNE43WmFHZkRjLUNqT2c3SWVQNjVvYWNZYUdDZlhoZGVYdw?oc=5",
+      "source": "Simply Wall St",
+      "published": "2026-11-26T18:10:27.000Z",
+      "date": "2026-11-27",
+      "category": "상품·전략",
+      "brands": [],
+      "language": "en",
+      "marketHint": "overseas",
+      "summary": "ETF를 통해 왜 롤스 로이스를 변경할 수 있습니다 위험 당신은",
+      "summaryKind": "title_translation",
+      "summarySource": "https://news.google.com/rss/articles/CBMi4AFBVV95cUxQT29lZTB1ZDQ4WEJjRkc5eE1XVWhEN2FLYlVhYzl2amJ5bzVEa0JWLVdZZjMwV3FQR3dQeFp1akZPa3djRmZ6Z0JzbExuR2V1NEl1QnZjdzc1dWRQMFJaSExiS3lsLVhPMmNaVERmNVVLa1pKNk12dWQ5aHc1OXpDRjBMVTQ1X3NnVFo4czVMcUFrZUxhT0dKM3lvM25kQXZuN0dKWkJ1SW9vLUpCLWNGQ09FWVNfTFgzM2trSFpxeWpacUdNeHdUWWdnM1dkbE9Qb3ZrWk9xd3NSci1ud1RJa9IB5gFBVV95cUxPVWM3THAzdl8ta1NrWmV5eE53cHoyY2RmdWtsOU5OaW1KWGlMa3dFRUlJMzRGREhkTkdEYmdqOEpXakRaWE9WYzNWWWhEZEZRTkNtdUVfdi0wczJnZ2pvRk93dWdHcGlILWhoYWNVd1MwZmgzNDMyYTIwcmJaZEk3MGsyZklzdjJxU3UyZ3VVME5YRWNYY0JmME9rcUxON2plNEpJWWVUVkVnbmQ4ZW01WEMwWlBEUlBFZWJqcHpET2kxeXhnNE43WmFHZkRjLUNqT2c3SWVQNjVvYWNZYUdDZlhoZGVYdw?oc=5"
+    },
+    {
+      "id": "7c147fd8794ec75542953af93048a09ebafdf4188c3b4afd48edad1ebf757075",
+      "title": "Hyperliquid price: US spot HYPE ETFs record USD 1,677,200 outflow",
+      "url": "https://news.google.com/rss/articles/CBMixAFBVV95cUxOalQ3cmJzYXdQZ1lOUUVsbWgyWHRlSG5fNGpZbHlMelBsRG84TmgzZk9kQ2FQeW1RRjlRNkVybVBfQzZsc2M2VlFGU3ZKUzFhU3Boa1FWU1JIQW1BYzB3dThFX016YnpYR3BuNGtydGZvc0VxcVI1ODM1ZGdQbFhyTm9vUGNPUVplNUkwUGFOaG9PUnVWSUZXQUtfcUJ0Z1hlYzF1WF9veW9yMEVyX05rdVVRQkw5VHRCQk5nYW5MbHg1a0dt?oc=5",
+      "source": "ad-hoc-news.de",
+      "published": "2026-11-26T17:31:17.000Z",
+      "date": "2026-11-27",
+      "category": "수급·성과",
+      "brands": [],
+      "language": "en",
+      "marketHint": "overseas",
+      "summary": "요구된 가격: US 점 HYPE ETF 기록 USD 1,677,200 유출",
+      "summaryKind": "title_translation",
+      "summarySource": "https://news.google.com/rss/articles/CBMixAFBVV95cUxOalQ3cmJzYXdQZ1lOUUVsbWgyWHRlSG5fNGpZbHlMelBsRG84TmgzZk9kQ2FQeW1RRjlRNkVybVBfQzZsc2M2VlFGU3ZKUzFhU3Boa1FWU1JIQW1BYzB3dThFX016YnpYR3BuNGtydGZvc0VxcVI1ODM1ZGdQbFhyTm9vUGNPUVplNUkwUGFOaG9PUnVWSUZXQUtfcUJ0Z1hlYzF1WF9veW9yMEVyX05rdVVRQkw5VHRCQk5nYW5MbHg1a0dt?oc=5"
+    },
+    {
+      "id": "7c4c88863450860062cc2ec50cffee8d44da2cbaa9968d5dd23b1a9775f090d7",
+      "title": "Vanguard's All-World ETF Adds 0.5% as Tariff Fears Cool, With €638 Million Logged Before the Slide",
+      "url": "https://news.google.com/rss/articles/CBMi-wFBVV95cUxOUW1vc1prWHBpQTZzU00xdU52UVJPNFd3cFlHSlZuTGNpMER1QTBEV3ZPeVZQMHFtNXZMRG1ZR2NKcm1rOTdOLWlkaGdXRWNZWnlhT0EyM3VYMkl2dk5nWUV6ZE40cTNwLXlFQVlUX1o4V0wtUkVmeUNNVlNWTGh5SV9FZzY5YmNHcDZxV1Z1LWJLOG1TMlZaQTdUbWR2SloxMWIxemhfLVFZRjhKbm1XMDJxM2lHd1AtcFBQVUFJOUZ6dGVUZU1ZT0pPUGxKdHNnZjhxOFh1MkYya2pJQXBzOHRXTWFwUzNMNGU5Z2VoQXVGbXhSQTRQN0lkdw?oc=5",
+      "source": "ad-hoc-news.de",
+      "published": "2026-11-26T17:13:13.000Z",
+      "date": "2026-11-27",
+      "category": "상품·전략",
+      "brands": [],
+      "language": "en",
+      "marketHint": "overseas",
+      "summary": "Vanguard의 All-World ETF는 0.5%를 Tariff Fears Cool으로 추가하며 €638 백만이 슬라이드 전에 로그인했습니다.",
+      "summaryKind": "title_translation",
+      "summarySource": "https://news.google.com/rss/articles/CBMi-wFBVV95cUxOUW1vc1prWHBpQTZzU00xdU52UVJPNFd3cFlHSlZuTGNpMER1QTBEV3ZPeVZQMHFtNXZMRG1ZR2NKcm1rOTdOLWlkaGdXRWNZWnlhT0EyM3VYMkl2dk5nWUV6ZE40cTNwLXlFQVlUX1o4V0wtUkVmeUNNVlNWTGh5SV9FZzY5YmNHcDZxV1Z1LWJLOG1TMlZaQTdUbWR2SloxMWIxemhfLVFZRjhKbm1XMDJxM2lHd1AtcFBQVUFJOUZ6dGVUZU1ZT0pPUGxKdHNnZjhxOFh1MkYya2pJQXBzOHRXTWFwUzNMNGU5Z2VoQXVGbXhSQTRQN0lkdw?oc=5"
+    },
+    {
+      "id": "d1ebf863468859caa15b0ddf0b116990408d3c04bfdb4293236acf422073bd47",
+      "title": "For the Retiree Who Wants the Portfolio to Match Their Faith at 69: 3 ETFs Built Around Values",
+      "url": "https://news.google.com/rss/articles/CBMi2AFBVV95cUxPeHlNeGNQZjVsSllPNGtMNWdYNW5ZSHpraEZ2MDlIc09SX2RpVFZSUXBOTTRyM3d2TklIS3J6c2oyQklGNEVzZmFjV1pMb091LVpYV0pTUGE5elhiYi1TNS0zNkxaV2pPTXJSSU1udkd2NTRMNlJLendmYkdwdmJxYVVVNGp0TjRNbUlOS2pTWGJNUGNIRElRajZIbTdlSUNKc1doSnFNOHloRUVoUmJBOUhTRW1xekFiT3BNcHZaQTQ1RDdUR29ETk8zZGN2ZDM5N1lMMUxVV0E?oc=5",
+      "source": "24/7 Wall St.",
+      "published": "2026-11-26T16:23:00.000Z",
+      "date": "2026-11-27",
+      "category": "상품·전략",
+      "brands": [],
+      "language": "en",
+      "marketHint": "overseas",
+      "summary": "69 : 3 ETF의 가치에 대한 자신의 믿음을 일치시키는 은퇴",
+      "summaryKind": "title_translation",
+      "summarySource": "https://news.google.com/rss/articles/CBMi2AFBVV95cUxPeHlNeGNQZjVsSllPNGtMNWdYNW5ZSHpraEZ2MDlIc09SX2RpVFZSUXBOTTRyM3d2TklIS3J6c2oyQklGNEVzZmFjV1pMb091LVpYV0pTUGE5elhiYi1TNS0zNkxaV2pPTXJSSU1udkd2NTRMNlJLendmYkdwdmJxYVVVNGp0TjRNbUlOS2pTWGJNUGNIRElRajZIbTdlSUNKc1doSnFNOHloRUVoUmJBOUhTRW1xekFiT3BNcHZaQTQ1RDdUR29ETk8zZGN2ZDM5N1lMMUxVV0E?oc=5"
+    },
+    {
+      "id": "a1503a4ddaaa30d3629f0698dc261f0f59d3497d564925601938526ee6c322e0",
+      "title": "TIGER 휴머노이드 ETF, 개인 순매수 5551억",
+      "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE16QW5vOVZ4cmFpX3FzaHhVNGEyOHdMaDRMcnhwNjY0dzhJWEdrZmk5RmFHZUdNOGV3TzdSQ2Q1Z1JFcEZVYlFCVE5Eelh3WV9mbEV0dEJsOGs3d2lKQms4LTdOcVpUUFRZU04yZV95bW8?oc=5",
+      "source": "코리아리포트",
+      "published": "2026-11-26T15:51:09.000Z",
+      "date": "2026-11-27",
+      "category": "수급·성과",
+      "brands": [
+        "TIGER"
+      ],
+      "language": "ko"
+    },
+    {
+      "id": "d9a8c20e64242b9f9dbe357521a72546f54a612e64bda1d6d7f1cd12fccc6dc5",
+      "title": "‘TIGER ETF’ 핵심 축으로… 연금자산 70兆 돌파, 압도적 1위 굳혀",
+      "url": "https://news.google.com/rss/articles/CBMijgFBVV95cUxOUFJ4LUQyWnVOOFZvSElhSTFtdTJ6U2ZUUkZocGVfZV9ZVWpXTTJVUEw5dDhaWXdMMTMxRkNQT0VpaWEyVzZ2X0l4V2w3UXJkUHluY0pBQlYtTWdCSWFLNTBqRFFhLW1FWFM2NjNJMWRCTlJzSnk2SkZoX21ubm5RVVZxUjVlLWpqaFpxN0JR?oc=5",
+      "source": "조선일보",
+      "published": "2026-11-26T15:34:43.000Z",
+      "date": "2026-11-27",
+      "category": "상품·전략",
+      "brands": [
+        "TIGER"
+      ],
+      "language": "ko"
+    },
+    {
+      "id": "e1bb25e7a52332d5da7a677897668cdffb5e80893f5e5b73abe4acb6d787a7d9",
+      "title": "KODEX 미국S&P500ETF, 개인 누적 순매수 3兆 돌파",
+      "url": "https://news.google.com/rss/articles/CBMijgFBVV95cUxPS0R2ZmZBXzl0Q0ZWTTJLTVNlRWJJejQ0OUYzWFJmWnFfVUpYYlNVQlhiTmJtcE1tMjVRaDB0Z1FXWXBkQW0yQjhPZlI5WnZOVVU0R3htX1dHSm4xb2hURXd0QkhSdjFpLXdTOG1Jck9PcERrMDU2OGpKMVJ5YnhXcjdFamtoazM2bnlnZ1NR?oc=5",
+      "source": "조선일보",
+      "published": "2026-11-26T15:34:43.000Z",
+      "date": "2026-11-27",
+      "category": "수급·성과",
+      "brands": [
+        "KODEX"
+      ],
+      "language": "ko"
+    },
+    {
+      "id": "520f0bc84f8dd208625f73df0ff56129b249acee9d0d38016c7e0769fb2b8b3a",
+      "title": "삼성전자·SK하이닉스 특별배당, 커버드콜 ETF에 반영",
+      "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE5EcGxDVl9kSVVyTWl2eUVYN205ZmhiX0luSDFDVlpXOTF3R3BGOVBaRVFjOERBWGV5endOaTVyaTN4YlNPRHVjR2pUM2QtYmhJa1pqNXp2WWNyaV9TeU9kNTBkdVAtc084cWhHQmV3R1A?oc=5",
+      "source": "코리아리포트",
+      "published": "2026-11-26T14:53:50.000Z",
+      "date": "2026-11-26",
+      "category": "상품·전략",
+      "brands": [],
+      "language": "ko"
+    },
+    {
+      "id": "f714bc22bd09d5c39d0bc8123cfe93bb4b6299b92a97784e5835063912928815",
+      "title": "IGSB: Largest Short-Term Investment-Grade Bond ETF In The Market, But Better Choices Out There",
+      "url": "https://news.google.com/rss/articles/CBMizgFBVV95cUxQZFFPbEJxSDQ4QzFsMGUySWlFcU9qbF82akFJWWY0eGQzMVV1M3kyLS1uNy1abGhZeGJNTFJSNjVQRGFReWZSYTBSMEdGOVYzMWNQdVZFTWlxbXVaYTFGeDJfaF9wUlBoT3NzWVNNTE5EUXJMZ2JLTjE0cExQcnBUZXVQQXpKVnpIaE9QRE5FSWNxeWMwWDJudjJkVTlkODctWG52aHBib0pKenllSGZBSFhRS1VrSzRDZGNJNFhCdHhGdmVRRzVfV2FsSTJTdw?oc=5",
+      "source": "Seeking Alpha",
+      "published": "2026-11-26T14:38:19.000Z",
+      "date": "2026-11-26",
+      "category": "상품·전략",
+      "brands": [],
+      "language": "en",
+      "marketHint": "overseas",
+      "summary": "IGSB : 시장에서 가장 큰 Short-Term Investment-Grade Bond ETF, 그러나 더 나은 선택이 있습니다",
+      "summaryKind": "title_translation",
+      "summarySource": "https://news.google.com/rss/articles/CBMizgFBVV95cUxQZFFPbEJxSDQ4QzFsMGUySWlFcU9qbF82akFJWWY0eGQzMVV1M3kyLS1uNy1abGhZeGJNTFJSNjVQRGFReWZSYTBSMEdGOVYzMWNQdVZFTWlxbXVaYTFGeDJfaF9wUlBoT3NzWVNNTE5EUXJMZ2JLTjE0cExQcnBUZXVQQXpKVnpIaE9QRE5FSWNxeWMwWDJudjJkVTlkODctWG52aHBib0pKenllSGZBSFhRS1VrSzRDZGNJNFhCdHhGdmVRRzVfV2FsSTJTdw?oc=5"
+    },
+    {
+      "id": "762debb78006ce5805e5bd017cb2103666be3fd9edc2b710082ef303e1b339d4",
+      "title": "Vanguard's All-World ETF Recovers 0.5% as Asia Tech Rebounds, but €638.3 Million Weekly Inflow Mar",
+      "url": "https://news.google.com/rss/articles/CBMigAJBVV95cUxNUU44MVJzcXRuMS0zdm5YT3ZGRWN4dzdETDBQYTUxMUQ3WV9xRkxmOFNZQ050MmFUa2UtV0I2MmRuLVY0X3ZjZ2lCLWdBNFhKY2JUdHVxWmxXSXVaQWR2cWFRYnFNMEowLWhrZ1RINkprNC1XaWNzamw4Z0dnV2tGQndENm5wa015T0VEWWVxMXlEcGJOR2xGdnY2eG5wQTFNZ1NkWFM3aldGS2FZRXdDTUxwTDNsaWFIZ1JmV293aDJBNlFFVlNDRWc3RTQ0aF9Oc3l4ZzgtYnk1UjFONktSX3hsSllqVjNSYUJ6SjFfajA2S1FxYXNudWJqMWZoVEd4?oc=5",
+      "source": "ad-hoc-news.de",
+      "published": "2026-11-26T14:34:10.000Z",
+      "date": "2026-11-26",
+      "category": "수급·성과",
+      "brands": [],
+      "language": "en",
+      "marketHint": "overseas",
+      "summary": "Vanguard의 모든 세계 ETF는 아시아 기술 리바운드로 0.5%를 복구하지만, €638.3 백만 주간 유입 Mar",
+      "summaryKind": "title_translation",
+      "summarySource": "https://news.google.com/rss/articles/CBMigAJBVV95cUxNUU44MVJzcXRuMS0zdm5YT3ZGRWN4dzdETDBQYTUxMUQ3WV9xRkxmOFNZQ050MmFUa2UtV0I2MmRuLVY0X3ZjZ2lCLWdBNFhKY2JUdHVxWmxXSXVaQWR2cWFRYnFNMEowLWhrZ1RINkprNC1XaWNzamw4Z0dnV2tGQndENm5wa015T0VEWWVxMXlEcGJOR2xGdnY2eG5wQTFNZ1NkWFM3aldGS2FZRXdDTUxwTDNsaWFIZ1JmV293aDJBNlFFVlNDRWc3RTQ0aF9Oc3l4ZzgtYnk1UjFONktSX3hsSllqVjNSYUJ6SjFfajA2S1FxYXNudWJqMWZoVEd4?oc=5"
+    },
+    {
+      "id": "20e161cad833a6f5dfde855f8147c1336b7879862a696206c7790c2fe254c041",
+      "title": "키움 코스닥150 커버드콜 ETF, 11월 153원 분배",
+      "url": "https://news.google.com/rss/articles/CBMicEFVX3lxTE1BZXBGLWp0SDFsVmt0Y25qQjlkdFRweS1RVWdEUmJTMVlhdHZKODJ2VnVzc0dVNG9UNmc4cTNlY3pkUk5la25QQ0taRmVVVVFCcmt4OXdURjlPdFlZQldjcjlpN2Q5VzBlWjdnRG1qZW4?oc=5",
+      "source": "코리아리포트",
+      "published": "2026-11-26T14:25:41.000Z",
+      "date": "2026-11-26",
+      "category": "상품·전략",
+      "brands": [],
+      "language": "ko"
+    },
     {
       "id": "9da204dd103c98bf49ec54ac6ba3c8a067ed5ce76cb2d6d044c1155c7d2e702c",
       "title": "삼성 KODEX 200커버드콜액티브 ETF, 삼성전자 특별배당 11월ㆍ12월 나눠 지급",
@@ -12,6 +227,34 @@
         "KODEX"
       ],
       "language": "ko"
+    },
+    {
+      "id": "c79e1f9796a4727c86e3d7841530b662433b6cfcdd431de02cb32555e36e3927",
+      "title": "미래에셋자산운용 'TIGER 코리아휴머노이드로봇산업 ETF' 개인 순매수 5000억원 돌파",
+      "url": "https://news.google.com/rss/articles/CBMia0FVX3lxTFA2VHhNMlpvenJ0SmdybDhidjlrNWF0dTJrX3dxajVrVXRtSEZVdEp5c1Q4U0NQdUN6UFpDaFJhdVJrNnJ2Q0l5dWZ1andJSGNTbmZnOG5pdlU5elcxbFVOZnJBTGtydFFFVDFF?oc=5",
+      "source": "마일드경제",
+      "published": "2026-11-26T13:22:00.000Z",
+      "date": "2026-11-26",
+      "category": "수급·성과",
+      "brands": [
+        "TIGER"
+      ],
+      "language": "ko"
+    },
+    {
+      "id": "4265326ceae441815d936f63751b4f8464ab7516b81e629b61c1c5499c8c1493",
+      "title": "Why 0.04% Fees Make the BetaShares Australia 200 ETF (ASX:A200) a Core Equity Building Block?",
+      "url": "https://news.google.com/rss/articles/CBMizgFBVV95cUxQR2JxWWRJMDdFZVJQT1RabUtkV0F3VzNsakROekhETVV2dzU5RzJBc2FwT1R3NGtJdmdYUk1XMmZuZzJhMWc0LTh4X2dGZ1IyMVpyTTZnYzVBZUhUVk5NaGRCWC1vTWgzR3F5R2taclNqRjJ1THVSaDcxTmR3TDJ4amZRdTZCQkZlODBQMW5kRlJyTVRFRUVyVFk1d2h6UThoczl3VzFXdkpha2JEQUZBTEp5NWlDRk9NeVZnZDZRQ3pYUVJ0NVBlUnJXclJaZw?oc=5",
+      "source": "Kalkine",
+      "published": "2026-11-26T13:12:00.000Z",
+      "date": "2026-11-26",
+      "category": "상품·전략",
+      "brands": [],
+      "language": "en",
+      "marketHint": "overseas",
+      "summary": "왜 0.04% 수수료는 BetaShares 호주 200 ETF ( ASX : A200) 핵심 Equity 빌딩 블록을 만들 수 있습니까?",
+      "summaryKind": "title_translation",
+      "summarySource": "https://news.google.com/rss/articles/CBMizgFBVV95cUxQR2JxWWRJMDdFZVJQT1RabUtkV0F3VzNsakROekhETVV2dzU5RzJBc2FwT1R3NGtJdmdYUk1XMmZuZzJhMWc0LTh4X2dGZ1IyMVpyTTZnYzVBZUhUVk5NaGRCWC1vTWgzR3F5R2taclNqRjJ1THVSaDcxTmR3TDJ4amZRdTZCQkZlODBQMW5kRlJyTVRFRUVyVFk1d2h6UThoczl3VzFXdkpha2JEQUZBTEp5NWlDRk9NeVZnZDZRQ3pYUVJ0NVBlUnJXclJaZw?oc=5"
     },
     {
       "id": "ec4b2aac44c19017e4c49afd0da8b1005768b1326178ac8915aca2f74c02c854",

@@ -516,13 +516,15 @@ for(const title of [
  "키움운용, '코스닥150커버드콜' ETF 이달 주당 153원 분배",
 ]){assert.equal(releaseCategory(title),'배당·분배');assert(!releaseImportance({title}).reasons.includes('제도·투자 가능 범위'));}
 for(const title of ['금융위, ETF 분배금 비과세 제도 개정','ETF 분배금 과세 기준 변경','ETF 분배금 비과세 세법 개정'])assert.equal(releaseCategory(title),'제도·시장');
-const releaseFixture=JSON.parse(fs.readFileSync(process.env.NEWS_RELEASE_FIXTURE||'tests/fixtures/syndication-2026-11-27.json','utf8')).articles.map(a=>({...a,category:releaseCategory(a.title)}));
+const releaseEdition=JSON.parse(fs.readFileSync(process.env.NEWS_RELEASE_FIXTURE||'tests/fixtures/syndication-2026-11-27.json','utf8'));
+const expectedReleaseCounts=releaseEdition.expectedReleaseCounts||{payout:9,robot:25,special:11};
+const releaseFixture=releaseEdition.articles.map(a=>({...a,category:releaseCategory(a.title)}));
 const representativeIds={payout:'32ecf44fbe7071ac4b1dd9e5282c3e8e75a452245f6767f77f0832a42b839d8d',robot:'ce9f16e1f42f625e7fde40085c939019c5a3ef2e430e25389ad79cb2fec935ba',special:'2fcd8c9d0edd78308cd81f964bdadba4a3666cc92a443ed970a8de56d7839d37'};
 for(const input of [releaseFixture,[...releaseFixture].reverse(),[...releaseFixture].sort(compareImportance)]){
  const groups=compressFlowTopics(groupStories(input));
  for(const [kind,id] of Object.entries(representativeIds)){
   const selected=groups.filter(s=>[s.a,...s.others].some(a=>a.id===id));assert.equal(selected.length,1);
-  assert.equal(selected[0].others.length+1,{payout:9,robot:25,special:11}[kind]);
+  assert.equal(selected[0].others.length+1,expectedReleaseCounts[kind]);
   assert(!/이모저모|금융권|소비자포럼/.test(selected[0].a.title));
   if(kind==='payout'){assert.equal(selected[0].a.summaryKind,'summary');assert.equal(selected[0].a.category,'배당·분배');}
  }
@@ -560,4 +562,4 @@ for(const title of [
  const other={...exactRobot,id:'flow-conflict',url:'https://example.com/flow-conflict',title};
  const keys=releaseEventKeys([exactRobot,other]);assert.notEqual(keys.get(exactRobot.id),keys.get(other.id),title);
 }
-console.log('LIVE EDITION: 9 KIWOOM payout, 25 TIGER personal-buying and 11 KODEX special-payout reports each appear once; clean representatives, tax classification, filter context, every source URL and distinct risks preserved');
+console.log('LIVE EDITION: '+JSON.stringify(expectedReleaseCounts)+' reports each appear once; clean representatives, tax classification, filter context, every source URL and distinct risks preserved');

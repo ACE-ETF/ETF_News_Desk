@@ -61,7 +61,7 @@ def category(title):
     if re.search(r"상장폐지|거래정지|규제|과세|세제|금융위|법안|세법|제도|개정|규정|\bSEC\b|regulat|liquidat|delist",policy_title,re.I):
         return "제도·시장"
     rules=[
-        (r"특별\s*배당|특별\s*분배|분배금|분배율|분배락|배당락|(?:주당|좌당).*\d[\d,]*\s*원\s*분배|distribution|dividend|payout","배당·분배"),
+        (r"특별\s*배당|특별\s*분배|분배금|분배율|분배락|배당락|(?:주당|좌당).*\d[\d,]*\s*원\s*분배|\d{1,2}월\s*\d[\d,]*\s*원\s*분배|distribution|dividend|payout","배당·분배"),
         (r"이벤트|경품|증정|캠페인|세미나|수상","마케팅"),
         (r"신규\s*상장|신규\s*출시|ETF.{0,20}출시|launch|debut","신규 상장"),
         (r"순매수|순매도|순자산|수익률|유입|유출|inflow|outflow|AUM|net assets|performance","수급·성과"),
